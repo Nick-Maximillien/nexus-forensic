@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pdb
+*.egg-info/
+central-accord-475812-g4-6d21ba7b0230.json
+molten-aurora-475715-f3-8906ce641221.json
+
+# Django
+db.sqlite3
+.env
+.env.local
+.env.production
+.env.development
+*.log
+media/
+staticfiles/
+static/
+
+# Docker
+*.pid
+*.sock
+docker-compose.override.yml
+
+# VSCode
+.vscode/
+
+# PyCharm
+.idea/
+
+# MacOS
+.DS_Store
+
+# Node (if any frontend logic exists here)
+node_modules/
+
+# Migrations (optional: keep if tracking them)
+# **/migrations/*.py
+# **/migrations/__pycache__/
+
+# Test/coverage
+htmlcov/
+.coverage
+.pytest_cache/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# System
+Thumbs.db
+ehthumbs.db

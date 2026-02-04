@@ -1,0 +1,55 @@
+# --- Core framework ---
+Django>=5.1.7
+
+# --- Environment management ---
+python-decouple>=3.8
+python-dotenv>=1.2.1
+
+# --- Database & URL parsing ---
+dj-database-url>=2.3.0
+psycopg2-binary>=2.9.9
+pgvector>=0.3.0             # NEW: Required for VectorField and L2Distance search
+
+# --- REST framework & JWT auth ---
+djangorestframework>=3.15.2
+djangorestframework-simplejwt>=5.3.1
+django-filter>=24.3
+
+# --- CORS ---
+django-cors-headers>=4.3.1
+
+# --- AI & LLM (Google Vertex) ---
+google-cloud-aiplatform>=1.70.0  # NEW: Required for import vertexai
+
+# --- Cloudinary storage ---
+cloudinary>=1.40.0
+django-cloudinary-storage>=0.3.0
+
+# --- Celery & Redis (for async tasks) ---
+celery>=5.4.0
+redis>=5.0.1
+
+
+# --- Deployment (Render WSGI server) ---
+gunicorn>=23.0.0
+uvicorn>=0.38.0
+
+# --- Ethereum / Web3 ---
+web3>=7.14.0
+eth-account>=0.13.7
+
+# --- Internet Computer (ICP) SDK ---
+ic-py>=1.0.1
+
+# --- File parsing / text extraction ---
+docling>=2.0.0
+
+# --- Utilities ---
+requests>=2.32.5
+protobuf>=5.29.5
+cryptography>=46.0.3
+pyyaml>=6.0.3
+six>=1.17.0
+
+# --- Optional typing / linting (for dev) ---
+typing-extensions>=4.15.0

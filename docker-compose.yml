@@ -1,0 +1,40 @@
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - db
+    volumes:
+      - ./molten-aurora-475715-f3-9c2988f382f9.json:/app/secrets/gcp_sa.json:ro
+    environment:
+      DATABASE_URL: postgres://postgres:37388710Max!@db:5432/medgate_db
+      NODE_SIGNING_URL: http://host.docker.internal:4000/sign-and-send-tx
+      GOOGLE_APPLICATION_CREDENTIALS: /app/secrets/gcp_sa.json
+      GCP_PROJECT_ID: molten-aurora-475715-f3
+    
+    # --- THE FIX ---
+    # Added --timeout 300 (5 minutes) to allow time for AI Model Warmup
+    command: >
+      sh -c "
+      python manage.py migrate --noinput &&
+      gunicorn --bind 0.0.0.0:8000 --timeout 700 medgate.wsgi:application
+      "
+
+  # (Database section remains unchanged)
+  db:
+    image: pgvector/pgvector:pg15
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 37388710Max!
+      POSTGRES_DB: medgate_db
+
+volumes:
+  postgres_data:
