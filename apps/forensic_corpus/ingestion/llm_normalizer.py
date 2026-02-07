@@ -1,224 +1,258 @@
 import json
-import os
 import logging
+import os
 import time
-import random
-from pathlib import Path
-from vertexai import init as vertex_init
-from vertexai.generative_models import GenerativeModel, GenerationConfig, HarmCategory, HarmBlockThreshold
-from google.api_core.exceptions import ResourceExhausted, ServiceUnavailable
+from django.conf import settings
+from llama_cpp import Llama
+from jsonschema import validate, ValidationError
 
 logger = logging.getLogger(__name__)
 
 # ----------------------------
-#  Setup GCP Credentials (Render-friendly)
+#  Global Singleton (The Brain)
 # ----------------------------
-
-if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.environ["GOOGLE_APPLICATION_CREDENTIALS"].replace("\\", "/")
+_MODEL = None
 
 # ----------------------------
-#  Vertex AI Initialization
+#  THE CONSTITUTION (Schema Definitions)
 # ----------------------------
-GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-GCP_LOCATION = "us-central1"
-
-try:
-    vertex_init(project=GCP_PROJECT_ID, location=GCP_LOCATION)
-except Exception as e:
-    logger.error(f"Vertex AI init failed: {e}")
-
-# ----------------------------
-#  Model & Config
-# ----------------------------
-# Using 2.5 Flash for fast, cheap logic extraction
-model = GenerativeModel("gemini-2.5-flash") 
-
-safety_settings = {
-    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+BASE_SCHEMA = {
+    "type": "object",
+    "required": ["rule_type", "logic_config", "scope_tags", "intent_tags", "summary"],
+    "properties": {
+        "rule_type": {"type": "string"},
+        "summary": {"type": "string"},
+        "scope_tags": {"type": "array", "items": {"type": "string"}},
+        "intent_tags": {"type": "array", "items": {"type": "string"}},
+        "logic_config": {"type": "object"}
+    }
 }
 
-def sanitize_prompt(prompt: str) -> str:
-    """Sanitize long prompts to reduce model blocking and improve JSON parsing."""
-    if len(prompt) > 7000:
-        prompt = prompt[:7000] + "\n\n[...truncated large data...]"
-    return prompt
+# Strict shapes for the 'logic_config' based on rule_type
+# NOW UPDATED TO COVER ALL 10 RULE TYPES
+LOGIC_CONFIG_SCHEMAS = {
+    # 1. TEMPORAL (Cause < Effect)
+    "temporal": {
+        "required": ["anchor", "target"],
+        "properties": {
+            "anchor": {"type": "string"},
+            "target": {"type": "string"},
+            "max_delay_minutes": {"type": ["number", "null"]}
+        }
+    },
+    # 2. THRESHOLD (Vital Limits)
+    "threshold": {
+        "required": ["target_vital", "operator"],
+        "properties": {
+            "target_vital": {"type": "string"},
+            "operator": {"enum": ["<", ">", "<=", ">=", "=", "!="]},
+            "min_value": {"type": ["number", "null"]},
+            "max_value": {"type": ["number", "null"]},
+            "unit": {"type": ["string", "null"]}
+        }
+    },
+    # 3. EXISTENCE (Must have X)
+    "existence": {
+        "required": ["required_artifact"],
+        "properties": {
+            "required_artifact": {"anyOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]}
+        }
+    },
+    # 4. CONTRAINDICATION (No X if Y)
+    "contra": {
+        "required": ["forbidden_treatment"],
+        "properties": {
+            "forbidden_treatment": {"type": "string"},
+            "trigger_drug": {"type": ["string", "null"]},
+            "trigger_condition": {"type": ["string", "null"]}
+        }
+    },
+    # 5. EXCLUSIVE (Cannot have X and Y)
+    "exclusive": {
+        "required": ["event_1", "event_2"],
+        "properties": {
+            "event_1": {"type": "string"},
+            "event_2": {"type": "string"}
+        }
+    },
+    # 6. MONOTONIC (Time must go forward for X)
+    "monotonic": {
+        "required": ["event_type"],
+        "properties": {
+            "event_type": {"type": "string"}
+        }
+    },
+    # 7. CONDITIONAL EXISTENCE (If Assertion X -> Must have Proof Y)
+    "conditional_existence": {
+        "required": ["trigger_assertion", "required_artifact"],
+        "properties": {
+            "trigger_assertion": {"type": "string"},
+            "required_artifact": {"type": "string"}
+        }
+    },
+    # 8. COUNT SANITY (No more than N occurrences of X)
+    "count_sanity": {
+        "required": ["event_type", "max_count"],
+        "properties": {
+            "event_type": {"type": "string"},
+            "max_count": {"type": "integer"}
+        }
+    },
+    # 9. DUPLICATE (Data Integrity)
+    # The python code executes this globally, so config is usually empty, 
+    # but we allow an object to prevent crashes if the LLM adds commentary.
+    "duplicate": {
+        "type": "object",
+        "additionalProperties": True 
+    },
+    # 10. PROTOCOL VALIDITY (Metadata Check)
+    # Relies on protocol.valid_from/until, not JSON config.
+    "protocol_validity": {
+        "type": "object",
+        "additionalProperties": True
+    }
+}
+
+def _load_cpu_brain():
+    """
+    Lazy loader that mounts the 8-bit GGUF model into System RAM.
+    """
+    global _MODEL
+    if _MODEL is not None:
+        return
+
+    model_name = "medgate_brain_4b_Q8.gguf"
+    model_path = os.path.join(settings.BASE_DIR, model_name)
+    
+    if not os.path.exists(model_path):
+        logger.critical(f" GGUF Artifact missing at: {model_path}")
+        raise FileNotFoundError(f"MedGate Brain not found. Please place '{model_name}' in the project root.")
+
+    logger.info(f" Mounting MedGate Edge Brain (Q8_0)... Path: {model_path}")
+    print(f" [MEDGATE] Loading Local Inference Engine...", flush=True)
+    
+    try:
+        # PERFORMANCE FIX: Hard Cap at 4 Threads
+        # Using all cores (os.cpu_count) causes 'Thread Thrashing' on WSL2/Docker,
+        # which looks like a system freeze. 4 threads is the optimal safe limit.
+        n_threads = min(4, max(1, os.cpu_count() - 1))
+        
+        _MODEL = Llama(
+            model_path=model_path,
+            n_ctx=2048,
+            n_threads=n_threads, 
+            verbose=False,
+            use_mlock=False
+        )
+        logger.info(" MedGate Neural Compiler is Online.")
+        print(f" [MEDGATE] Brain Online. (Threads: {n_threads}, Locked: False)", flush=True)
+    except Exception as e:
+        logger.error(f"Failed to load GGUF model: {e}")
+        raise e
+
+def warmup_forensic_brain():
+    """
+    Triggers model load at startup.
+    """
+    if _MODEL is None:
+        _load_cpu_brain()
+
+def validate_forensic_output(instance):
+    """
+    The Hard Symbolic Gate.
+    Returns True if valid, raises ValidationError if invalid.
+    """
+    # 1. Check Base Structure
+    validate(instance=instance, schema=BASE_SCHEMA)
+    
+    # 2. Check Logic Specifics
+    rule_type = instance.get("rule_type")
+    
+    # Now validates ALL 10 Types defined in LOGIC_CONFIG_SCHEMAS
+    if rule_type in LOGIC_CONFIG_SCHEMAS:
+        validate(instance=instance["logic_config"], schema=LOGIC_CONFIG_SCHEMAS[rule_type])
+    
+    return True
 
 def extract_metadata_only(unit_identifier, text_chunk):
     """
-    Uses LLM to extract Forensic Logic (Rule Type + Config) AND Context (Scope + Intent).
-    Returns:
-        dict: {
-            "rule_type": str,       # 'temporal', 'threshold', 'monotonic', etc.
-            "logic_config": dict,   # Structured params for the Django Gate
-            "scope_tags": list,     # ['clinical', 'facility', 'billing']
-            "intent_tags": list,    # ['safety', 'quality', 'compliance']
-            "summary": str          # Short human-readable summary
-        }
+    NEURO-SYMBOLIC COMPILER (EDGE VERSION)
+    Text -> LLM -> JSON -> Schema Gate -> Database
     """
+    global _MODEL
     
-    # [VISIBILITY] Force print to console so the user knows it's working
-    print(f" [LLM] Extracting logic for: {unit_identifier}", flush=True)
+    if _MODEL is None:
+        _load_cpu_brain()
 
-    # ---------------------------------------------------------
-    #  THE CLINICAL LOGIC PROMPT (MERGED VERSION)
-    # ---------------------------------------------------------
-    raw_prompt = f"""
-    You are a Clinical Logic Parser for a Forensic Audit System.
-    Analyze the following medical protocol text identified as "{unit_identifier}".
+    print(f" [COMPILER] Processing: {unit_identifier}...", flush=True)
 
-    ---------------------------------------------------------
-    TASK 1: FORENSIC LOGIC EXTRACTION (The Precision Gate)
-    ---------------------------------------------------------
-    Convert the natural language rule into a STRUCTURED JSON configuration that code can execute.
-    You MUST classify the rule into one of these 10 Types:
+    # Note: We keep the Alpaca prompt because your adapter was trained on it.
+    alpaca_prompt = f"""Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
-    1. TEMPORAL (Time sequence rules)
-       Example: "ECG must be performed within 10 minutes of arrival."
-       JSON: {{ "rule_type": "temporal", "logic_config": {{ "anchor": "arrival", "target": "ECG", "max_delay_minutes": 10 }} }}
+### Instruction:
+You are a Forensic Logic Parser. Convert the following clinical guideline text into an executable JSON schema.
 
-    2. THRESHOLD (Vital sign or Lab limits)
-       Example: "Administer Oxygen if Saturation is below 90%."
-       JSON: {{ "rule_type": "threshold", "logic_config": {{ "target_vital": "Oxygen Saturation", "min_value": 90, "operator": "<" }} }}
+### Input:
+{text_chunk}
 
-    3. EXISTENCE (Required evidence/action)
-       Example: "A neurological assessment is required."
-       JSON: {{ "rule_type": "existence", "logic_config": {{ "required_artifact": "neurological assessment" }} }}
+### Response:
+"""
 
-    4. CONTRA (Contraindications)
-       Example: "Do not administer Nitrates if patient took Sildenafil."
-       JSON: {{ "rule_type": "contra", "logic_config": {{ "forbidden_treatment": "Nitrates", "trigger_drug": "Sildenafil" }} }}
+    try:
+        start_time = time.time()
+        
+        # 1. PROBABILISTIC GENERATION
+        output = _MODEL(
+            alpaca_prompt,
+            max_tokens=512,
+            temperature=0.0, # Deterministic
+            # SURGICAL FIX: Added <end_of_turn> as MedGemma sometimes emits this instead of ###
+            stop=["<|endoftext|>", "###", "<end_of_turn>"],
+            echo=False
+        )
+        
+        duration = time.time() - start_time
+        response_text = output['choices'][0]['text'].strip()
+        
+        # 2. SYMBOLIC EXTRACTION
+        clean_text = response_text.replace("```json", "").replace("```", "").strip()
+        json_start = clean_text.find("{")
+        json_end = clean_text.rfind("}")
+        
+        if json_start == -1 or json_end == -1:
+            logger.warning(f"Compiler Error: No JSON found for {unit_identifier}")
+            # PERFORMANCE FIX: Return None to skip, don't fallback
+            return None 
 
-    5. EXCLUSIVE (Mutually Exclusive Events)
-       Example: "Conscious sedation and General Anesthesia cannot be billed same day."
-       JSON: {{ "rule_type": "exclusive", "logic_config": {{ "event_1": "Conscious sedation", "event_2": "General Anesthesia" }} }}
-    
-    6. DUPLICATE (Data Integrity)
-       Example: "Verify no duplicate billing codes."
-       JSON: {{ "rule_type": "duplicate", "logic_config": {{}} }}
+        json_payload = json.loads(clean_text[json_start : json_end + 1])
 
-    7. CONDITIONAL EXISTENCE (Assertion -> Proof)
-       Example: "If chest pain is reported, an ECG strip must exist."
-       JSON: {{ "rule_type": "conditional_existence", "logic_config": {{ "trigger_assertion": "chest pain", "required_artifact": "ECG strip" }} }}
-       
-    8. PROTOCOL VALIDITY (Metadata)
-       Example: "This standard is valid for events in 2024 only."
-       JSON: {{ "rule_type": "protocol_validity", "logic_config": {{}} }}
-       
-    9. COUNT SANITY (Outlier Detection)
-       Example: "Maximum 3 nebulizer treatments allowed per hour."
-       JSON: {{ "rule_type": "count_sanity", "logic_config": {{ "event_type": "nebulizer", "max_count": 3 }} }}
+        # 3. THE HARD GATE
+        validate_forensic_output(json_payload)
 
-    10. MONOTONIC (Timeline Stability)
-       Example: "Vital signs must be recorded in chronological order."
-       JSON: {{ "rule_type": "monotonic", "logic_config": {{ "event_type": "vitals" }} }}
+        print(f"   ✅ Parsed in {duration:.2f}s", flush=True)
+        return json_payload
 
-    ---------------------------------------------------------
-    TASK 2: SCOPE CLASSIFICATION (Context)
-    ---------------------------------------------------------
-    Determine WHERE this rule applies (Select all that apply):
-    - "clinical": Direct patient care (meds, diagnosis, procedures, vitals).
-    - "facility": Operations, equipment maintenance, staffing licensure, building safety, policies.
-    - "billing": Coding or billing specific.
-    - "legal": Regulatory/Court order requirements.
+    except ValidationError as e:
+        logger.error(f" Schema Violation for {unit_identifier}: {e.message}")
+        print(f"   -> REJECTED by Gate: {e.message}", flush=True)
+        # PERFORMANCE FIX: Return None to skip
+        return None
 
-    ---------------------------------------------------------
-    TASK 3: INTENT CLASSIFICATION (Purpose)
-    ---------------------------------------------------------
-    Determine WHY this rule exists (Select all that apply):
-    - "safety": Patient safety (e.g., prevent harm).
-    - "quality": Standard of care / Outcomes.
-    - "compliance": Regulatory paperwork (e.g., logs, signatures).
-    - "integrity": Data accuracy or fraud prevention.
+    except json.JSONDecodeError as e:
+        logger.error(f" Syntax Error for {unit_identifier}: {e}")
+        # PERFORMANCE FIX: Return None to skip
+        return None
+        
+    except Exception as e:
+        logger.error(f" System Fault: {e}")
+        # PERFORMANCE FIX: Return None to skip
+        return None
 
-    ---------------------------------------------------------
-    INPUT TEXT:
-    {text_chunk[:2000]}
-
-    OUTPUT FORMAT (Strict JSON):
-    {{
-        "rule_type": "...",
-        "logic_config": {{...}},
-        "scope_tags": ["clinical"], 
-        "intent_tags": ["safety"],
-        "summary": "Short 1-sentence summary"
-    }}
-    """
-    
-    final_prompt = sanitize_prompt(raw_prompt)
-
-    generation_config = GenerationConfig(
-        response_mime_type="application/json",
-        temperature=0.0 # Strict Determinism required for Logic
-    )
-
-    # --- RETRY LOGIC FOR RATE LIMITING ---
-    max_retries = 6
-    base_delay = 2 
-
-    for attempt in range(max_retries):
-        try:
-            response = model.generate_content(
-                final_prompt, 
-                generation_config=generation_config,
-                safety_settings=safety_settings
-            )
-            
-            # SURGICAL FIX: Strip markdown before parsing to prevent crash
-            raw_text = response.text.strip()
-            if raw_text.startswith("```"):
-                lines = raw_text.splitlines()
-                # Remove first line if it starts with ``` (e.g. ```json)
-                if lines[0].startswith("```"):
-                    lines = lines[1:]
-                # Remove last line if it starts with ```
-                if lines and lines[-1].startswith("```"):
-                    lines = lines[:-1]
-                raw_text = "\n".join(lines).strip()
-
-            # -------------------------------------------------------------
-            #  FIX APPLIED: Handle List vs Object responses
-            # -------------------------------------------------------------
-            parsed_json = json.loads(raw_text)
-            
-            # If AI returns a list [ {} ], extract the first item
-            if isinstance(parsed_json, list):
-                if len(parsed_json) > 0:
-                    return parsed_json[0]
-                else:
-                    # Fallback for empty list
-                    return {
-                        "rule_type": "existence",
-                        "logic_config": {"required_artifact": "unknown_requirement"},
-                        "scope_tags": ["clinical"],
-                        "intent_tags": ["quality"],
-                        "summary": "Auto-extraction failed (Empty List returned)"
-                    }
-            
-            # Otherwise return the dict as is
-            return parsed_json
-
-        except (ResourceExhausted, ServiceUnavailable) as e:
-            wait_time = (base_delay * (2 ** attempt)) + random.uniform(0, 1)
-            # [VISIBILITY] Force print so user sees the rate limit happening
-            print(f" [LLM] ⚠️ Rate Limit hit for {unit_identifier}. Retrying in {wait_time:.2f}s...", flush=True)
-            logger.warning(f"Rate limit hit for {unit_identifier}. Retrying in {wait_time:.2f}s... (Attempt {attempt + 1}/{max_retries})")
-            time.sleep(wait_time)
-
-        except Exception as e:
-            # [VISIBILITY] Force print so user sees the error
-            print(f" [LLM] ❌ Logic extraction failed: {e}", flush=True)
-            logger.error(f"Logic extraction failed (Non-Retryable): {e}")
-            break 
-    
-    # Fallback default if AI fails (Safe Default: Just check existence)
+def _get_fallback_schema(summary_text="", reason="Unknown"):
     return {
         "rule_type": "existence",
-        "logic_config": {"required_artifact": "unknown_requirement"},
+        "logic_config": {"required_artifact": "MANUAL_REVIEW_REQUIRED"},
         "scope_tags": ["clinical"],
         "intent_tags": ["quality"],
-        "summary": "Auto-extraction failed"
+        "summary": f"[COMPILER FAIL] {reason}. Input: {summary_text[:30]}..."
     }

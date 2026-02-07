@@ -7,6 +7,8 @@ WORKDIR /apps
 
 RUN apt-get update && apt-get install -y \
     gcc \
+    g++ \
+    cmake \
     libpq-dev \
     tesseract-ocr \
     libtesseract-dev \

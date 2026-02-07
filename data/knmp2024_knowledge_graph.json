@@ -1,0 +1,409 @@
+[
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "updated 2024 National Malaria Policy"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "1.1",
+    "source_text": "Background\n\nThe 2024 National Malaria Policy is an update of the 2010 National Malaria Policy, and it reflects the current healthcare delivery structure in Kenya and updated recommendations from the World Health Organization (WHO). The policy development was also informed by the Kenya Institute for Public Policy Research and Analysis guidelines . 1\n\nThe Republic of Kenya covers a total area of 582,646 square kilometres, bordered by Ethiopia to the north, South Sudan to the northwest, Uganda to the West, Tanzania to the South, and Somalia to the East. Administratively, Kenya is divided into 47 counties and subdivided into 314 sub -counties as of 2024. Kenya is home to people of diverse cultures, including more than 42 ethnic groups with many languages and dialects . Kenya's population was estimated to be about 47.5 million in 2019, and the latest projections indicate that it is currently 51.5 million. According to the Kenya National Bureau of Statistics (KNBS), 17% of the Kenyan population are children under five years of age, while 25% are women aged 15\u201349 years. The under-five mortality rate has declined over the years; by 2022, it was 41 deaths per 1,000 live births (Kenya Demogr"
+  },
+  {
+    "intent_tags": [],
+    "logic_config": {},
+    "rule_type": "unsupported",
+    "scope_tags": [],
+    "summary": "Non-executable narrative text",
+    "rule_code": "1.2",
+    "source_text": "Malaria Situation"
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "Malaria Epidemiology report"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "1.2.1",
+    "source_text": "Malaria Epidemiology\n\nMalaria remains a significant cause of morbidity and mortality in Kenya, with more than 70% of the population at risk of malaria. 4 Malaria is heterogeneous in the country, and in 2020, a malaria infection prevalence mapping classified the counties into five stable endemicity areas: very low transmission, low transmission, low-moderate transmission, moderate transmission, and high transmission. Nairobi was classified as malaria -free based on data and historical evaluation of the malaria situation in the county. 5 The 2020 Kenya Malaria Indicator Survey (KMIS) showed that children, pregnant women, and non-immune individuals are disproportionately affected. For example, there were variations in malaria parasite prevalence across the eco-epidemiological zones of the country among children under five years of age: 17% in endemic areas, 1.4% in areas of seasonal malaria transmission (arid and semi-arid lowlands), 1% in epidemic-prone regions, and 0.4% in low-risk transmission areas. The prevalence of malaria dropped slightly from 8% to 5.6% between 2015 and 2020.6 However, the Malaria Programme Review (MPR) of the 2019\u2013 2023 Kenya Malaria Strategy showed a worryin"
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "identification of four common Plasmodium species (P. falciparum, P. malariae, P. ovale, P. vivax), their prevalence percentages in Kenya, and the main malaria vectors (An. gambiae s.s., An. arabiensis, An. funestus s.s., An. merus) as well as the newly identified invasive vector An. stephensi"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "1.2.2",
+    "source_text": "Parasite and Vector Species\n\nFour common species of Plasmodium cause malaria in Kenya: Plasmodium falciparum , Plasmodium malariae , Plasmodium ovale , and Plasmodium vivax . The KMIS 2020 findings demonstrated that P. falciparum accounts for 76% of all infections, while P. malariae and P. ovale account for 4% and 1%, respectively , and mixed infections of P. falciparum and P. malariae account for 19% . P. vivax has recently been reported in sick patients with malaria in the northern parts of the country. The main malaria vectors reported countrywide include Anopheles gambiae s.s . , Anopheles arabiensis , Anopheles funestus s.s ., and Anopheles merus. A new invasive malaria vector, An . stephensi , was detected in the country in 2022, posing a threat to malaria control, especially in urban areas.\n\n4 Division of National Malaria Programme (DNMP) [Kenya] and ICF. 2021. Kenya Malaria Indicator Survey 2020. Nairobi, Kenya and Rockville, Maryland, USA: DNMP and ICF.\n\n5 Alegana et al. 2021. Malaria Infection Prevalence Mapping in Kenya in 2020. Nairobi, Kenya. Division of National Malaria Programme, Ministry of Health, ICF, PMI Measure Malaria, and KEMRI-Welcome Trust-University of Oxfo"
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "malaria-free Kenya"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "2.1",
+    "source_text": "Vision\n\nA malaria -free Kenya"
+  },
+  {
+    "intent_tags": [],
+    "logic_config": {},
+    "rule_type": "unsupported",
+    "scope_tags": [],
+    "summary": "Non-executable narrative text",
+    "rule_code": "2.2",
+    "source_text": "Mission\n\nTo provide a framework to guide the achievement of a malaria-free Kenya by fostering inclusive, collaborative, coordinated actions and partnerships at all levels in keeping with national/international norms and standards."
+  },
+  {
+    "intent_tags": [
+      "quality",
+      "safety"
+    ],
+    "logic_config": {
+      "required_artifact": "Universal Health Coverage policy"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "3.1",
+    "source_text": "Universal Health Coverage\n\nThis policy aligns with the government's agenda on access to quality and affordable healthcare services for all. In keeping with the UHC agenda, the policy aims to ensure appropriate malaria services are delivered through all healthcare levels, including at the household level through community health structures."
+  },
+  {
+    "intent_tags": [
+      "compliance"
+    ],
+    "logic_config": {
+      "required_artifact": "alignment with constitutional mandates"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "legal"
+    ],
+    "rule_code": "3.2",
+    "source_text": "Devolution of Health Services\n\nThis policy aligns with the constitutional mandates for delivering health services in a devolved system as defined in the 4th schedule of the 2010 Constitution of Kenya."
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "coordinated multi-sectoral approach to malaria control and elimination"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "3.3",
+    "source_text": "Multi -sectoral Approach\n\nThis policy is anchored on a coordinated multi-sectoral approach to malaria control and elimination, requiring all stakeholders' proactive inclusion and participation."
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "tailored malaria intervention strategy"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "3.4",
+    "source_text": "Tailoring of Interventions\n\nMalaria interventions will be targeted based on the prevailing information and data on transmission settings to achieve the right mix of interventions for optimal impact."
+  },
+  {
+    "intent_tags": [
+      "quality",
+      "compliance"
+    ],
+    "logic_config": {
+      "required_artifact": "equity, human rights, and gender alignment"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "3.5",
+    "source_text": "Equity, Human Rights, and Gender\n\nThe policy is aligned with the equity, human rights, and gender principles that anchor the delivery of health services that adopt a people-centred approach, emphasising inclusive community participation in the planning, implementing, and monitoring of health services while ensuring that the needs of special and vulnerable populations are incorporated.\n\n<!-- image -->\n\n<!-- image -->"
+  },
+  {
+    "intent_tags": [
+      "quality",
+      "safety"
+    ],
+    "logic_config": {
+      "required_artifact": "acknowledgment of evolving innovation in tools, approaches, and strategies"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "3.6",
+    "source_text": "Adaptive and Innovative Tools, Approaches, and Strategies/Interventions for Effective Program Implementation\n\nThis policy acknowledges the continuous evolution of innovation, tools, and technology and makes provisions for adopting and deploying new technologies and tools, including novel digital tools, as they become available."
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "Malaria Prevention plan"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "4.1",
+    "source_text": "Malaria Prevention\n\n## Preamble\n\nPrevention is critical for reducing disease burden and eventual elimination of malaria. It reduces disease incidence and transmission, with the ultimate goal of completely interrupting transmission. Malaria prevention can target the vector (vector control) or the parasites in selected high-risk groups (preventive chemotherapy and vaccines). The main aim of vector control is to reduce the capacity of the vectors to transmit malaria. In contrast, preventive chemotherapies aim at preventing infected individuals from developing the disease with its attendant morbidities. While vector control interventions target all areas of malaria transmission, the high-risk groups targeted by preventive chemotherapy and vaccines include pregnant women, children, non-immune individuals visiting malaria -endemic regions, and people with immunosuppressive conditions."
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality",
+      "compliance"
+    ],
+    "logic_config": {
+      "required_artifact": "Equitable access to effective malaria vector control interventions appropriate to each transmission setting, surveillance systems for vector bionomics, vector behavior, susceptibility, and monitoring of vector control tools, and participation in strategic cross-border malaria control and elimination initiatives"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "4.1.1",
+    "source_text": "Vector Control\n\n## Policy Statement\n\nThe Government of Kenya (GoK) will ensure:\n\n- Equitable access to effective malaria vector control interventions appropriate to each transmission setting.\n- Surveillance is conducted for vector bionomics, vector behaviour , susceptibility, and monitoring of vector control tools to ensure their effectiveness.\n- Participation in strategic cross-border malaria control and elimination initiatives."
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "preventive chemotherapy documentation"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "4.1.2",
+    "source_text": "Preventive Chemotherapy"
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "intermittent preventive treatment of malaria in pregnancy (IPTp)",
+      "trigger_assertion": "pregnant woman lives in areas of moderate to high malaria transmission"
+    },
+    "rule_type": "conditional_existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "4.1.2.1",
+    "source_text": "Prevention of Malaria in Pregnancy\n\n## Policy Statement\n\nThe GoK will ensure:\n\n- All pregnant women living in areas of moderate to high malaria transmission receive intermittent preventive treatment of malaria in pregnancy (IPTp) as part of antenatal care services."
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "appropriate antimalarial medicine(s), either alone or in combination, for prevention of malaria infection in defined vulnerable populations"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "4.1.2.2",
+    "source_text": "Chemoprevention\n\n## Policy Statement\n\nThe GoK will ensure:\n\n- Appropriate antimalarial medicines, either alone or in combination, are given to defined vulnerable populations (based on local data evidence and context information) to prevent malaria infection. The preventive chemotherapies include seasonal malaria chemoprevention, perennial malaria chemoprevention, post-discharge malaria chemoprevention,\n\n<!-- image -->\n\n<!-- image -->\n\nintermittent preventive treatment of malaria in infants and school children, and mass drug administration."
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "appropriate malaria chemoprophylaxis"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "4.1.2.3",
+    "source_text": "Chemoprophylaxis\n\n## Policy Statement\n\nThe GoK recommends:\n\n- Appropriate malaria chemoprophylaxis is given to non-immune persons visiting malaria-endemic areas."
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "Equitable access to malaria vaccines for all eligible populations"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "4.1.2.4",
+    "source_text": "Immunoprevention\n\n## Policy Statement\n\nThe GoK will ensure:\n\n- Equitable access to malaria vaccines to all eligible populations."
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "diagnosis and effective treatment of malaria"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "4.2",
+    "source_text": "Diagnosis and Treatment of Malaria\n\n## Preamble\n\nAccess to the highest quality of care is critical to reducing morbidity and preventing deaths. Rapid malaria diagnosis, with prompt, effective treatment, is delivered through all healthcare sectors, including public, faith-based, private, and community service channels. Community health services leverage the primary health care system, which is pivotal in attaining UHC.\n\n## Policy Statement\n\n## The GoK will ensure:\n\n- Equitable access to quality diagnosis and effective treatment at all levels of the healthcare system.\n- An enabling environment for the provision of community-based malaria services.\n- The effectiveness of case management through surveillance for therapeutic efficacy, resistance monitoring, pharmacovigilance, and malaria diagnostics."
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "County-level malaria epidemic preparedness and response plan"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "4.3",
+    "source_text": "Epidemic Preparedness and Response\n\n## Preamble\n\nSeveral factors, including climate change, may alter transmission patterns and increase the risk of epidemics. Malaria epidemic preparedness and response (EPR) is a disease surveillance and response priority. Prediction, prevention, and timely response to malaria outbreaks, particularly in epidemicprone areas, are vital to the reduction of malaria morbidity and mortality.\n\n## Policy Statement\n\nThe GoK will ensure:\n\n- Counties prone to malaria epidemics have adequate early warning and detection systems that are part of a routine Integrated Disease Surveillance and Response System.\n- Availability of and access to emergency resources for timely response to malaria outbreaks exist."
+  },
+  {
+    "intent_tags": [],
+    "logic_config": {},
+    "rule_type": "unsupported",
+    "scope_tags": [],
+    "summary": "Non-executable narrative text",
+    "rule_code": "4.4",
+    "source_text": "Surveillance, Monitoring, Evaluation, and Operations Research"
+  },
+  {
+    "intent_tags": [
+      "quality",
+      "safety",
+      "compliance"
+    ],
+    "logic_config": {
+      "required_artifact": "National Malaria Surveillance, Monitoring, and Evaluation Plan"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "facility",
+      "national"
+    ],
+    "rule_code": "4.4.1",
+    "source_text": "Surveillance, Monitoring, and Evaluation\n\n## Preamble\n\nEffective surveillance, monitoring, and evaluation (SME) of the national malaria programme activities remains essential for providing data for assessing malaria trends as well as stratification and targeting of control or elimination interventions \u2014 thus informing strategies and resource allocation. Surveillance shall aim to support disease control and elimination per the transmission settings; hence, SME will continue to be a core strategy to guide malaria control and elimination programming in Kenya.\n\n## Policy Statement\n\nThe GoK will ensure:\n\n- A national SME plan guides malaria SME, and adequate resources are committed for its implementation.\n- SME will be undertaken at the national, county, subcounty, health facility, and community levels.\n- Regular evidence-based stratification informs the targeting of interventions.\n- Surveillance approaches are implemented based on the appropriate malaria transmission setting recommendations.\n- Routine malaria inpatient and outpatient data from all public, faith-based, and private healthcare providers is mainstreamed into the National Health Information Systems."
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "operations research"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "4.4.2",
+    "source_text": "Operations Research\n\n## Preamble\n\nOperational research is vital for context adaptation of strategies and tools leading to improved malaria programming, policies, guidelines, and approaches.\n\n## Policy Statement\n\nThe GoK will ensure:\n\n- The relevant capacity (institutional, human, and financial) to strengthen research is prioritised.\n\n<!-- image -->\n\n<!-- image -->\n\n- There is an effective framework for engagement with relevant entities to make available research findings and mainstream evidence generated into malaria control policies and guidelines."
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "robust systems for Social Behaviour Change"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "4.5",
+    "source_text": "Social Behaviour Change\n\n## Preamble\n\nSustained and effective social behaviour change (SBC) interventions are vital for achieving optimal uptake of malaria interventions and combating the disease. SBC recognises the multifaceted factors influencing behaviours beyond mere knowledge. By engaging communities through education campaigns and peer influence programs, stakeholders can address misconceptions, overcome barriers, and promote consistent use of malaria prevention and elimination interventions. Empowering individuals and communities foster sustainable practices and responsibility for health outcomes, thereby reducing malaria transmission and improving resilience to future health challenges.\n\n## Policy Statement\n\nThe GoK will ensure:\n\n- Commitment to establishing robust systems to achieve universal access to appropriate, accurate, and culturally acceptable information about malaria prevention, control, and elimination, in line with the overarching principles outlined in the Kenya Malaria Policy.\n- SBC strategies are customised to effectively address the diverse communication and behavioural change needs and preferences of communities across the country, thereby enhancing the eff"
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality"
+    ],
+    "logic_config": {
+      "required_artifact": "coordinated multi-sectoral approach, optimal implementation capacity, sustainable financing, and continued advocacy"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "4.6",
+    "source_text": "Program Management\n\n## Preamble\n\nAchieving a malaria-free Kenya requires a coordinated multi-sectoral approach, optimal implementation capacity, sustainable financing, and continued advocacy in keeping with the shared roles , responsibilities , and distribution of functions outlined in Schedule 4 of the 2010 Constitution of Kenya.\n\n## Policy Statement\n\nThe GoK will ensure that:\n\n- There is a government-led, effective, inclusive, structured, and accountable partnership for coordinating malaria control and elimination.\n- There will be adequate resources for managing and implementing malaria control and elimination, including human capacity.\n\n- There is adequate financing at all levels and sectors efficiently used for malaria control and elimination.\n- Malaria control and elimination are a prioritised agenda at all levels and across all sectors.\n- There is harmonization of cross -border malaria control and elimination approaches."
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality",
+      "compliance"
+    ],
+    "logic_config": {
+      "required_artifact": "timely and affordable access to quality-assured malaria commodities and technologies"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "4.7",
+    "source_text": "Procurement and Supply Chain Management\n\n## Preamble\n\nUHC entails health services being equitable, available, and affordable to all. Access to tools and technologies for health to the last mile is critical to assuring UHC. Universal access to quality-assured malaria commodities depends on a functional procurement and supply chain management system. This allows for timely availability of the tools where and when required\u2014 avoiding stockouts and wastage.\n\n## Policy Statement\n\nThe GoK will ensure:\n\n- There is timely and affordable access to quality-assured malaria commodities and technologies for the end-user.\n\n<!-- image -->\n\n<!-- image -->\n\nThe policy will be articulated through the Kenya Malaria Strategy which defines time -bound (five-year) goals, objectives, and targets, along with detailing the appropriate populations, strategies, interventions, and tools in line with this policy to achieve the desired goals in the defined timeframe. The development and implementation of the strategic plan will be an inclusive process led by the National Malaria Control Programme (NMCP), with joint / shared responsibility of the national and county governments and partners."
+  },
+  {
+    "intent_tags": [
+      "safety",
+      "quality",
+      "compliance"
+    ],
+    "logic_config": {
+      "required_artifact": "monitoring and evaluation plan defining indicators and methods"
+    },
+    "rule_type": "existence",
+    "scope_tags": [
+      "clinical"
+    ],
+    "rule_code": "5.1",
+    "source_text": "Monitoring and Evaluation\n\nThe national malaria policy will be monitored through the periodic review of the Kenya Malaria Strategy based on a monitoring and evaluation plan, which defines indicators and methods for assessing the progress of malaria control and elimination in the country.\n\nThe malaria policy recognises the pivotal role of research and innovation in addressing emerging challenges from biological threats such as new vectors and parasites, pandemics, disasters, and climate change. This policy will promote the use of existing tools and the development and deployment of new tools and innovations, including digital solutions. The government will ensure an enabling environment for research and innovation.\n\nThis policy aligns with the Kenya Health Policy and WHO Global Malaria Frameworks. It will, therefore, be reviewed if there is a significant shift in the malaria eco -epidemiological and entomological landscape at the country and global levels to the extent that it affects Kenya or the region.\n\n| Name                      | Organisation                        |\n|---------------------------|-------------------------------------|\n| Abubakar Mohamed          | Ministry of H"
+  }
+]

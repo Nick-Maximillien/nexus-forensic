@@ -131,6 +131,11 @@ class ClinicalProtocolParser(BaseParser):
 
             metadata = extract_metadata_only(full_rule_code, content_body)
             
+            # PERFORMANCE FIX: Seamless Skip
+            if metadata is None:
+                print(f"   -> SKIPPING {full_rule_code} (Schema Violation or Parse Error)", flush=True)
+                continue
+
             # [UPGRADE] Added scope_tags and intent_tags mapping from LLM metadata
             rules.append(ForensicRule(
                 protocol=protocol_obj,
@@ -248,6 +253,11 @@ class GuidelineParser(BaseParser):
                 )
 
                 metadata = extract_metadata_only(full_rule_code, enriched_text)
+
+                # PERFORMANCE FIX: Seamless Skip
+                if metadata is None:
+                    print(f"   -> SKIPPING {full_rule_code} (Schema Violation or Parse Error)", flush=True)
+                    continue
 
                 # -----------------------------
                 # Normalize intent tags to model enum

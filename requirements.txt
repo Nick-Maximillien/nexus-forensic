@@ -4,6 +4,7 @@ Django>=5.1.7
 # --- Environment management ---
 python-decouple>=3.8
 python-dotenv>=1.2.1
+jsonschema>=4.17.0
 
 # --- Database & URL parsing ---
 dj-database-url>=2.3.0
@@ -14,6 +15,11 @@ pgvector>=0.3.0             # NEW: Required for VectorField and L2Distance searc
 djangorestframework>=3.15.2
 djangorestframework-simplejwt>=5.3.1
 django-filter>=24.3
+
+# --- Edge AI (Local CPU Inference) ---
+llama-cpp-python>=0.2.77     
+numpy>=1.24.0                
+
 
 # --- CORS ---
 django-cors-headers>=4.3.1
