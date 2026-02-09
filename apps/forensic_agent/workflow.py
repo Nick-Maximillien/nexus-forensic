@@ -71,7 +71,6 @@ class ForensicAuditorAgent:
 
             try:
                 # 2. PLAN (Forensic Audit Plan)
-                # [UPGRADE] Log includes Scope for auditability
                 self._log(task, "PLANNING", f"Intent: '{query_text}' | Scope: {scope.upper()} | Specialty: {specialty}")
                 
                 plan = ForensicAuditPlan(
@@ -79,14 +78,19 @@ class ForensicAuditorAgent:
                     patient_age=patient_age,
                     event_timestamp=event_timestamp,
                     active_protocols_only=True,
-                    audit_scope=scope # [NEW] Passing scope to the contract
+                    audit_scope=scope 
                 )
 
-                # 3. RETRIEVE (Forensic RAG)
-                self._log(task, "RETRIEVAL", "🔍 Scanning Clinical Corpus (Vector + Keyword)...")
+                # 3. CONTENT-AWARE RETRIEVAL (Wire 2 Upgrade)
+                # [FIX]: Extract clinical event names to build a medical fingerprint query
+                extracted_events = claim_data.get('events', [])
+                event_fingerprint = " ".join([e.get('name', '') for e in extracted_events if e.get('name')])
+                enriched_query = f"{query_text} {event_fingerprint}"
                 
-                query_vec = get_embedding(query_text)
-                rules = ForensicRAG.retrieve_applicable_rules(query_vec, plan, query_text)
+                self._log(task, "RETRIEVAL", f"🔍 Scanning Clinical Corpus for extracted events: {event_fingerprint[:100]}...")
+                
+                query_vec = get_embedding(enriched_query)
+                rules = ForensicRAG.retrieve_applicable_rules(query_vec, plan, enriched_query)
 
                 # Persist protocol provenance (law applied)
                 task.retrieved_protocols = [
@@ -112,17 +116,53 @@ class ForensicAuditorAgent:
                     )
 
                 # 4. VALIDATE (Forensic Gate)
-                event_count = len(claim_data.get('events', []))
+                event_count = len(extracted_events)
+
+                # [FIX]: Relaxed Medical DNA Gate (Filter non-medical claims)
+                # We check for broader identity keys + clinical event density.
+                # Valid clinical documents often have identifiers buried in a larger buffer.
+                has_identity = any([
+                    claim_data.get('patient'),
+                    claim_data.get('patient_name'),
+                    claim_data.get('medical_record_number'),
+                    claim_data.get('mrn'),
+                    'patient' in str(claim_data).lower()[:2000], # Expanded search buffer
+                    'mrn' in str(claim_data).lower()[:2000]
+                ])
+
+                # [DENSITY FALLBACK]: If no clear identity exists, trust the document if it contains 
+                # a high density of clinical events (> 3), signifying a detailed record.
+                is_medical_content = has_identity or (event_count > 3)
+
+                if scope == "clinical" and not is_medical_content:
+                    self._log(task, "HALT", "⛔ Non-Medical Content Detected. (Missing Patient Identity or Clinical Density).", "ERROR")
+                    return self._finalize_task(
+                        task,
+                        'HALTED',
+                        {
+                            "is_valid": False,
+                            "reason": "NON_MEDICAL_DOCUMENT",
+                            "violations": [
+                                {
+                                    "violation": "Audit failed: Document lacks essential medical context (MRN/Identity) or clinical data density required for adjudication."
+                                }
+                            ]
+                        }
+                    )
+
+                # [FIX 3] Check for Extraction Void
+                if event_count == 0:
+                     self._log(task, "WARNING", "⚠️ Zero events extracted from claim. Audit may default to Missing Evidence.", "WARNING")
+
                 self._log(task, "REASONING", f"⚖️ Adjudicating {event_count} clinical events against {len(rules)} rules...")
                 
-                # Deterministic execution — NO LLM
+                # Deterministic execution —> NO LLM
                 verdict: ForensicVerdict = ForensicGateLayer.execute_audit(
-                    claim_events=claim_data.get('events', []),
+                    claim_events=extracted_events,
                     applicable_rules=rules
                 )
 
                 # 5. AGENTIC EXPLANATION (Run LLM regardless of pass/fail)
-                # We want the LLM to explain the violations if they exist.
                 self._log(task, "RENDERING", "📝 Invoking Forensic LLM for explanation...")
                 
                 report_json_str = generate_forensic_report(claim_data, verdict)
@@ -140,12 +180,11 @@ class ForensicAuditorAgent:
                     task,
                     final_status,
                     verdict,
-                    final_report=report_json_str # The LLM report is now always attached
+                    final_report=report_json_str 
                 )
 
             except Exception as e:
                 self._log(task, "CRASH", f"🔥 System Failure: {str(e)}", "CRITICAL")
-                # System-level failure (non-forensic)
                 task.status = 'ERROR'
                 task.final_report = {"system_error": str(e)}
                 task.completed_at = timezone.now()
@@ -164,7 +203,6 @@ class ForensicAuditorAgent:
              # Create rich passed rules list logic preserved
             rich_passed_rules = []
             for r in verdict_obj.passed_rules:
-                # Assuming r is a ForensicRule model instance
                 rich_passed_rules.append({
                     "code": r.rule_code,
                     "protocol": r.protocol.title,

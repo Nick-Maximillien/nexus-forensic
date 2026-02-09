@@ -14,12 +14,13 @@ class ForensicAuditPlan:
 
     # 2. Optional Fields
     patient_age: Optional[int] = None
-    # We filter by protocol applicability
     active_protocols_only: bool = True
     
-    #  SCOPE CONTROL: 'clinical' (Patient) vs 'facility' (Ops)
-    # This allows deterministic filtering in RAG without keywords
+    # SCOPE CONTROL: 'clinical' (Patient) vs 'facility' (Ops)
     audit_scope: str = "clinical" 
+
+    #  Facility level awareness for the Kenyan Pilot
+    facility_level: Optional[str] = "level_2" 
 
 @dataclass
 class ForensicVerdict:

@@ -136,6 +136,12 @@ class ClinicalProtocolParser(BaseParser):
                 print(f"   -> SKIPPING {full_rule_code} (Schema Violation or Parse Error)", flush=True)
                 continue
 
+            # [FIX] Standardize Enums for ForensicRAG compatibility
+            # This ensures tags like "Safety" or "Integrity" are mapped to model choices
+            intent_map = {"integrity": "billing", "documentation": "documentation"}
+            raw_intents = metadata.get('intent_tags', ['quality'])
+            final_intents = [intent_map.get(t.lower(), t.lower()) for t in raw_intents if t.lower() in dict(ForensicRule.RULE_INTENTS) or t.lower() in intent_map] or ['quality']
+
             # [UPGRADE] Added scope_tags and intent_tags mapping from LLM metadata
             rules.append(ForensicRule(
                 protocol=protocol_obj,
@@ -144,7 +150,7 @@ class ClinicalProtocolParser(BaseParser):
                 text_description=content_body.strip(),
                 logic_config=metadata.get('logic_config', {}),
                 scope_tags=metadata.get('scope_tags', ['clinical']), # Default to clinical
-                intent_tags=metadata.get('intent_tags', ['quality']) # Default to quality
+                intent_tags=final_intents 
             ))
             
         return rules
@@ -268,10 +274,10 @@ class GuidelineParser(BaseParser):
                 }
 
                 final_intents = [
-                    intent_map.get(t, t)
+                    intent_map.get(t.lower(), t.lower())
                     for t in metadata.get("intent_tags", intent_tags)
-                    if t in dict(ForensicRule.RULE_INTENTS)
-                    or t in intent_map
+                    if t.lower() in dict(ForensicRule.RULE_INTENTS)
+                    or t.lower() in intent_map
                 ] or intent_tags
 
                 rules.append(
