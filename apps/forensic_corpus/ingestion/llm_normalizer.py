@@ -50,30 +50,33 @@ def sanitize_prompt(prompt: str) -> str:
 def extract_metadata_only(unit_identifier, text_chunk):
     """
     Uses LLM to extract Forensic Logic (Rule Type + Config) AND Context (Scope + Intent).
+    Updated for the Kenyan Pivot: Includes KEPH Facility Level Tagging.
     Returns:
         dict: {
             "rule_type": str,       # 'temporal', 'threshold', 'monotonic', etc.
             "logic_config": dict,   # Structured params for the Django Gate
             "scope_tags": list,     # ['clinical', 'facility', 'billing']
             "intent_tags": list,    # ['safety', 'quality', 'compliance']
+            "applicable_facility_levels": list, # ['level_1', ..., 'level_6']
             "summary": str          # Short human-readable summary
         }
     """
     
     # [VISIBILITY] Force print to console so the user knows it's working
-    print(f" [LLM] Extracting logic for: {unit_identifier}", flush=True)
+    print(f" [LLM] Extracting Kenyan logic for: {unit_identifier}", flush=True)
 
     # ---------------------------------------------------------
-    #  THE CLINICAL LOGIC PROMPT (MERGED VERSION)
+    #  THE CLINICAL LOGIC PROMPT (KENYAN PIVOT MERGED)
     # ---------------------------------------------------------
     raw_prompt = f"""
-    You are a Clinical Logic Parser for a Forensic Audit System.
-    Analyze the following medical protocol text identified as "{unit_identifier}".
+    You are a Clinical Logic Parser specializing in the Kenyan Essential Package for Health (KEPH).
+    Analyze the medical protocol text identified as "{unit_identifier}" within the context of MoH guidelines.
 
     ---------------------------------------------------------
     TASK 1: FORENSIC LOGIC EXTRACTION (The Precision Gate)
     ---------------------------------------------------------
     Convert the natural language rule into a STRUCTURED JSON configuration that code can execute.
+    Recognize Kenyan specifics like MCH Handbook constraints (e.g. 8 ANC visits) and KEML drug administration.
     You MUST classify the rule into one of these 10 Types:
 
     1. TEMPORAL (Time sequence rules)
@@ -109,15 +112,26 @@ def extract_metadata_only(unit_identifier, text_chunk):
        JSON: {{ "rule_type": "protocol_validity", "logic_config": {{}} }}
        
     9. COUNT SANITY (Outlier Detection)
-       Example: "Maximum 3 nebulizer treatments allowed per hour."
-       JSON: {{ "rule_type": "count_sanity", "logic_config": {{ "event_type": "nebulizer", "max_count": 3 }} }}
+       Example: "Minimum 8 ANC visits required during pregnancy."
+       JSON: {{ "rule_type": "count_sanity", "logic_config": {{ "event_type": "ANC Visit", "min_count": 8 }} }}
 
     10. MONOTONIC (Timeline Stability)
        Example: "Vital signs must be recorded in chronological order."
        JSON: {{ "rule_type": "monotonic", "logic_config": {{ "event_type": "vitals" }} }}
 
     ---------------------------------------------------------
-    TASK 2: SCOPE CLASSIFICATION (Context)
+    TASK 2: FACILITY LEVEL TAGGING (Kenyan Context)
+    ---------------------------------------------------------
+    Identify the applicable facility level(s) based on the Kenyan MoH hierarchy:
+    - "level_1": Community (CHVs)
+    - "level_2": Dispensaries
+    - "level_3": Health Centres
+    - "level_4": Sub-County Hospitals
+    - "level_5": County Referral Hospitals
+    - "level_6": National Referral (KNH/MTRH)
+
+    ---------------------------------------------------------
+    TASK 3: SCOPE CLASSIFICATION (Context)
     ---------------------------------------------------------
     Determine WHERE this rule applies (Select all that apply):
     - "clinical": Direct patient care (meds, diagnosis, procedures, vitals).
@@ -126,7 +140,7 @@ def extract_metadata_only(unit_identifier, text_chunk):
     - "legal": Regulatory/Court order requirements.
 
     ---------------------------------------------------------
-    TASK 3: INTENT CLASSIFICATION (Purpose)
+    TASK 4: INTENT CLASSIFICATION (Purpose)
     ---------------------------------------------------------
     Determine WHY this rule exists (Select all that apply):
     - "safety": Patient safety (e.g., prevent harm).
@@ -144,6 +158,7 @@ def extract_metadata_only(unit_identifier, text_chunk):
         "logic_config": {{...}},
         "scope_tags": ["clinical"], 
         "intent_tags": ["safety"],
+        "applicable_facility_levels": ["level_2", "level_3"],
         "summary": "Short 1-sentence summary"
     }}
     """
@@ -171,10 +186,8 @@ def extract_metadata_only(unit_identifier, text_chunk):
             raw_text = response.text.strip()
             if raw_text.startswith("```"):
                 lines = raw_text.splitlines()
-                # Remove first line if it starts with ``` (e.g. ```json)
                 if lines[0].startswith("```"):
                     lines = lines[1:]
-                # Remove last line if it starts with ```
                 if lines and lines[-1].startswith("```"):
                     lines = lines[:-1]
                 raw_text = "\n".join(lines).strip()
@@ -187,18 +200,14 @@ def extract_metadata_only(unit_identifier, text_chunk):
             # If AI returns a list [ {} ], extract the first item
             if isinstance(parsed_json, list):
                 if len(parsed_json) > 0:
-                    return parsed_json[0]
+                    parsed_json = parsed_json[0]
                 else:
-                    # Fallback for empty list
-                    return {
-                        "rule_type": "existence",
-                        "logic_config": {"required_artifact": "unknown_requirement"},
-                        "scope_tags": ["clinical"],
-                        "intent_tags": ["quality"],
-                        "summary": "Auto-extraction failed (Empty List returned)"
-                    }
+                    raise ValueError("Empty List returned")
             
-            # Otherwise return the dict as is
+            # Ensure the facility levels key exists for the Kenyan Pivot
+            if "applicable_facility_levels" not in parsed_json:
+                parsed_json["applicable_facility_levels"] = ["level_2"]
+
             return parsed_json
 
         except (ResourceExhausted, ServiceUnavailable) as e:
@@ -220,5 +229,6 @@ def extract_metadata_only(unit_identifier, text_chunk):
         "logic_config": {"required_artifact": "unknown_requirement"},
         "scope_tags": ["clinical"],
         "intent_tags": ["quality"],
+        "applicable_facility_levels": ["level_2"],
         "summary": "Auto-extraction failed"
     }

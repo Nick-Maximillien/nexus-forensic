@@ -4,10 +4,20 @@ from django.contrib.postgres.fields import ArrayField
 from pgvector.django import VectorField
 from django.contrib.postgres.search import SearchVectorField
 
+# Choice definition aligned with Kenyan MoH standards
+FACILITY_LEVELS = [
+    ('level_1', 'Community (CHVs)'),
+    ('level_2', 'Dispensaries'),
+    ('level_3', 'Health Centres'),
+    ('level_4', 'Sub-County Hospitals'),
+    ('level_5', 'County Referral Hospitals'),
+    ('level_6', 'National Referral (KNH/MTRH)'),
+]
+
 # 1. The "Constitution" of Medicine: Clinical Protocols
 class ClinicalProtocol(models.Model):
     """
-    Represents a standard of care (e.g., AHA ACLS).
+    Represents a standard of care (e.g., MoH MCH Handbook).
     """
     SPECIALTIES = [
         ('cardiology', 'Cardiology'),
@@ -46,6 +56,13 @@ class ClinicalProtocol(models.Model):
     issuing_body = models.CharField(max_length=255) # e.g., "American Heart Association"
     specialty = models.CharField(max_length=50, choices=SPECIALTIES)
     
+    # Facility level awareness for Kenyan Context
+    min_facility_level = models.CharField(
+        max_length=20, 
+        choices=FACILITY_LEVELS, 
+        default='level_2'
+    )
+
     # Validity Window
     valid_from = models.DateField()
     valid_until = models.DateField(null=True, blank=True)
@@ -111,6 +128,13 @@ class ForensicRule(models.Model):
 
     # The machine-readable logic (for the Django Gate to execute)
     logic_config = models.JSONField(default=dict)
+
+    # [NEW] Granular facility level enforcement for the Kenyan Pivot
+    applicable_facility_levels = ArrayField(
+        models.CharField(max_length=20, choices=FACILITY_LEVELS),
+        default=list,
+        help_text="Facility levels where this specific rule is enforceable."
+    )
 
     # Deterministic Scope & Intent Tags
     # This enables "Surgical Scoping" without keyword hacking

@@ -56,20 +56,20 @@ class ForensicAuditorAgent:
         if not event_timestamp:
             event_timestamp = datetime.now().isoformat()
 
-        # Entire forensic action is atomic by design
-        with transaction.atomic():
+        # Step 1: Initialize Task outside transaction to ensure it exists if logic fails
+        task = AuditTask.objects.create(
+            case_id=self.case_id,
+            claim_payload=claim_data,
+            query_intent=query_text,
+            status='RUNNING'
+        )
+        
+        self._log(task, "INIT", f"🚀 Forensic Agent Activated. Case: {self.case_id}")
 
-            # 1. INITIALIZE TASK (Persistence)
-            task = AuditTask.objects.create(
-                case_id=self.case_id,
-                claim_payload=claim_data,
-                query_intent=query_text,
-                status='RUNNING'
-            )
-            
-            self._log(task, "INIT", f"🚀 Forensic Agent Activated. Case: {self.case_id}")
+        try:
+            # Entire forensic adjudication is atomic
+            with transaction.atomic():
 
-            try:
                 # 2. PLAN (Forensic Audit Plan)
                 self._log(task, "PLANNING", f"Intent: '{query_text}' | Scope: {scope.upper()} | Specialty: {specialty}")
                 
@@ -82,7 +82,6 @@ class ForensicAuditorAgent:
                 )
 
                 # 3. CONTENT-AWARE RETRIEVAL (Wire 2 Upgrade)
-                # [FIX]: Extract clinical event names to build a medical fingerprint query
                 extracted_events = claim_data.get('events', [])
                 event_fingerprint = " ".join([e.get('name', '') for e in extracted_events if e.get('name')])
                 enriched_query = f"{query_text} {event_fingerprint}"
@@ -92,18 +91,18 @@ class ForensicAuditorAgent:
                 query_vec = get_embedding(enriched_query)
                 rules = ForensicRAG.retrieve_applicable_rules(query_vec, plan, enriched_query)
 
-                # Persist protocol provenance (law applied)
+                # Persist protocol provenance
                 task.retrieved_protocols = [
                     getattr(r, "protocol_id", None) for r in rules
                 ]
-                task.save(update_fields=["retrieved_protocols"])
+                # No save here, we do it in finalize inside the transaction
                 
                 self._log(task, "RETRIEVAL", f"✅ Found {len(rules)} relevant forensic rules.")
 
                 # [LOGIC BRANCH]: No Law Found → HALT
                 if not rules:
                     self._log(task, "HALT", "⛔ No applicable clinical protocols found.", "WARNING")
-                    return self._finalize_task(
+                    task = self._finalize_task(
                         task,
                         'HALTED',
                         {
@@ -114,93 +113,89 @@ class ForensicAuditorAgent:
                             ]
                         }
                     )
-
-                # 4. VALIDATE (Forensic Gate)
-                event_count = len(extracted_events)
-
-                # [FIX]: Relaxed Medical DNA Gate (Filter non-medical claims)
-                # We check for broader identity keys + clinical event density.
-                # Valid clinical documents often have identifiers buried in a larger buffer.
-                has_identity = any([
-                    claim_data.get('patient'),
-                    claim_data.get('patient_name'),
-                    claim_data.get('medical_record_number'),
-                    claim_data.get('mrn'),
-                    'patient' in str(claim_data).lower()[:2000], # Expanded search buffer
-                    'mrn' in str(claim_data).lower()[:2000]
-                ])
-
-                # [DENSITY FALLBACK]: If no clear identity exists, trust the document if it contains 
-                # a high density of clinical events (> 3), signifying a detailed record.
-                is_medical_content = has_identity or (event_count > 3)
-
-                if scope == "clinical" and not is_medical_content:
-                    self._log(task, "HALT", "⛔ Non-Medical Content Detected. (Missing Patient Identity or Clinical Density).", "ERROR")
-                    return self._finalize_task(
-                        task,
-                        'HALTED',
-                        {
-                            "is_valid": False,
-                            "reason": "NON_MEDICAL_DOCUMENT",
-                            "violations": [
-                                {
-                                    "violation": "Audit failed: Document lacks essential medical context (MRN/Identity) or clinical data density required for adjudication."
-                                }
-                            ]
-                        }
-                    )
-
-                # [FIX 3] Check for Extraction Void
-                if event_count == 0:
-                     self._log(task, "WARNING", "⚠️ Zero events extracted from claim. Audit may default to Missing Evidence.", "WARNING")
-
-                self._log(task, "REASONING", f"⚖️ Adjudicating {event_count} clinical events against {len(rules)} rules...")
-                
-                # Deterministic execution —> NO LLM
-                verdict: ForensicVerdict = ForensicGateLayer.execute_audit(
-                    claim_events=extracted_events,
-                    applicable_rules=rules
-                )
-
-                # 5. AGENTIC EXPLANATION (Run LLM regardless of pass/fail)
-                self._log(task, "RENDERING", "📝 Invoking Forensic LLM for explanation...")
-                
-                report_json_str = generate_forensic_report(claim_data, verdict)
-                
-                # 6. FINALIZE STATUS based on verdict validity
-                final_status = 'CLEARED' if verdict.is_valid else 'HALTED'
-                
-                if verdict.is_valid:
-                    self._log(task, "VERDICT", "✅ CLEARED: Clinical logic holds.", "SUCCESS")
                 else:
-                    violation_count = len(verdict.violations)
-                    self._log(task, "VERDICT", f"❌ INVALID: {violation_count} Critical Violations detected.", "ERROR")
+                    # 4. VALIDATE (Forensic Gate)
+                    event_count = len(extracted_events)
 
-                return self._finalize_task(
-                    task,
-                    final_status,
-                    verdict,
-                    final_report=report_json_str 
-                )
+                    has_identity = any([
+                        claim_data.get('patient'),
+                        claim_data.get('patient_name'),
+                        claim_data.get('medical_record_number'),
+                        claim_data.get('mrn'),
+                        'patient' in str(claim_data).lower()[:2000], 
+                        'mrn' in str(claim_data).lower()[:2000]
+                    ])
 
-            except Exception as e:
-                self._log(task, "CRASH", f"🔥 System Failure: {str(e)}", "CRITICAL")
-                task.status = 'ERROR'
-                task.final_report = {"system_error": str(e)}
-                task.completed_at = timezone.now()
-                task.save()
-                raise e
+                    is_medical_content = has_identity or (event_count > 3)
+
+                    if scope == "clinical" and not is_medical_content:
+                        self._log(task, "HALT", "⛔ Non-Medical Content Detected. (Missing Patient Identity or Clinical Density).", "ERROR")
+                        task = self._finalize_task(
+                            task,
+                            'HALTED',
+                            {
+                                "is_valid": False,
+                                "reason": "NON_MEDICAL_DOCUMENT",
+                                "violations": [
+                                    {
+                                        "violation": "Audit failed: Document lacks essential medical context (MRN/Identity) or clinical data density required for adjudication."
+                                    }
+                                ]
+                            }
+                        )
+                    else:
+                        if event_count == 0:
+                             self._log(task, "WARNING", "⚠️ Zero events extracted from claim. Audit may default to Missing Evidence.", "WARNING")
+
+                        self._log(task, "REASONING", f"⚖️ Adjudicating {event_count} clinical events against {len(rules)} rules...")
+                        
+                        verdict: ForensicVerdict = ForensicGateLayer.execute_audit(
+                            claim_events=extracted_events,
+                            applicable_rules=rules
+                        )
+
+                        # 5. AGENTIC EXPLANATION
+                        self._log(task, "RENDERING", "📝 Invoking Forensic LLM for explanation...")
+                        report_json_str = generate_forensic_report(claim_data, verdict)
+                        
+                        final_status = 'CLEARED' if verdict.is_valid else 'HALTED'
+                        
+                        if verdict.is_valid:
+                            self._log(task, "VERDICT", "✅ CLEARED: Clinical logic holds.", "SUCCESS")
+                        else:
+                            violation_count = len(verdict.violations)
+                            self._log(task, "VERDICT", f"❌ INVALID: {violation_count} Critical Violations detected.", "ERROR")
+
+                        task = self._finalize_task(
+                            task,
+                            final_status,
+                            verdict,
+                            final_report=report_json_str 
+                        )
+
+            # 6. COMMUNICATION TRIGGER (OUTSIDE Transaction)
+            # This prevents network timeouts from bricking the database or hanging the worker.
+            NotificationService.send_notification(task)
+            return task
+
+        except Exception as e:
+            self._log(task, "CRASH", f"🔥 System Failure: {str(e)}", "CRITICAL")
+            task.status = 'ERROR'
+            task.final_report = {"system_error": str(e)}
+            task.completed_at = timezone.now()
+            task.save()
+            raise e
 
     def _finalize_task(self, task, status, verdict_obj, final_report=None):
         """
-        Updates state, saves artifacts, and triggers communication loop.
+        Updates state and serializes artifacts. 
+        Note: This is called within the atomic block of run_audit.
         """
         task.status = status
         task.completed_at = timezone.now()
 
         # Serialize Verdict Logic
         if isinstance(verdict_obj, ForensicVerdict):
-             # Create rich passed rules list logic preserved
             rich_passed_rules = []
             for r in verdict_obj.passed_rules:
                 rich_passed_rules.append({
@@ -227,8 +222,4 @@ class ForensicAuditorAgent:
         
         self._log(task, "FINISH", f"🏁 Process Complete. Status: {status}")
         task.save()
-
-        # 6. COMMUNICATION TRIGGER (Closed-Loop Agentic Safety)
-        NotificationService.send_notification(task)
-
         return task

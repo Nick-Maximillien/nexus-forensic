@@ -1,12 +1,14 @@
 import logging
 from django.conf import settings
+from twilio.rest import Client
+from twilio.base.exceptions import TwilioRestException
 
 logger = logging.getLogger(__name__)
 
 class NotificationService:
     """
-    The Voice of the Agent.
-    Sends real-time updates to humans based on Forensic State.
+    The Voice of the Agent (Twilio Edition).
+    Sends real-time updates via Twilio WhatsApp API.
     """
 
     @staticmethod
@@ -14,59 +16,98 @@ class NotificationService:
         """
         Dispatches message based on STATE_HALTED vs STATE_CLEARED.
         """
+        # 1. Determine Message Content
         if audit_task.status == 'CLEARED':
-            NotificationService._send_cleared_notice(audit_task)
+            message_body = NotificationService._build_cleared_message(audit_task)
         elif audit_task.status == 'HALTED':
-            NotificationService._send_halt_notice(audit_task)
+            message_body = NotificationService._build_halt_message(audit_task)
+        else:
+            return 
+
+        # 2. Send via Twilio
+        try:
+            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
             
-        audit_task.notification_sent = True
-        audit_task.save()
+            # Handle Sender Format
+            from_number = settings.TWILIO_WHATSAPP_NUMBER 
+            if not from_number.startswith("whatsapp:"):
+                from_number = f"whatsapp:{from_number}"
+
+            # Handle Recipient Format (Sanitize & Prefix)
+            raw_to = str(settings.AUDITOR_WHATSAPP_NUMBER).replace(" ", "").replace("-", "")
+            if not raw_to.startswith("+"):
+                # Assume Kenya if missing, or user must provide full E.164 in env
+                raw_to = f"+{raw_to}" 
+            
+            if not raw_to.startswith("whatsapp:"):
+                to_number = f"whatsapp:{raw_to}"
+            else:
+                to_number = raw_to
+
+            logger.info(f" [TWILIO] Dispatching to {to_number}...")
+
+            message = client.messages.create(
+                body=message_body,
+                from_=from_number,
+                to=to_number
+            )
+
+            # 3. Update Audit Trace
+            audit_task.notification_sent = True
+            # Store Twilio SID (It fits easily in your 255-char column)
+            audit_task.notification_channel = f"Twilio API ({message.sid})"
+            audit_task.save(update_fields=['notification_sent', 'notification_channel'])
+            
+            logger.info(f"✅ Twilio Message Sent: {message.sid}")
+
+        except TwilioRestException as e:
+            logger.error(f"❌ Twilio API Failed: {e}")
+        except Exception as e:
+            logger.error(f"❌ Notification Error: {e}")
 
     @staticmethod
-    def _send_halt_notice(task):
-        """
-        Template for HALTED state.
-        "Refusal is a safety mechanism."
-        """
-        # Extract the specific violation for transparency
+    def _build_halt_message(task):
+        """Constructs a 'Forensic Alert' for invalid claims."""
         violations = task.verdict_json.get('violations', [])
         
-        # FIX: The Gate Layer returns 'validation_trace', not 'violation'
         if violations:
-            primary_violation = violations[0].get('validation_trace', 'Unknown Violation')
-            rule_code = violations[0].get('logic_source', 'Unknown')
+            v = violations[0]
+            rule_code = v.get('rule', {}).get('code', 'UNKNOWN')
+            trace = v.get('validation_trace', 'Constraint Mismatch')
+            if ":" in trace:
+                trace = trace.split(":")[-1].strip()
+            violation_text = f"[{rule_code}] {trace}"
+            if len(violations) > 1:
+                violation_text += f" (+{len(violations)-1} others)"
         else:
-            primary_violation = "Multiple Constraints Failed"
-            rule_code = "N/A"
+            violation_text = "Multiple Constraints Failed"
 
-        message = (
-            f"🚨 *MedGate Forensic Alert*\n"
-            f"Case ID: {task.case_id}\n"
-            f"Status: HALTED 🛑\n"
-            f"Violation: {rule_code} — {primary_violation}\n"
-            f"Action: Audit stopped. Manual review required."
+        return (
+            f"🚨 *MEDGATE FORENSIC ALERT*\n"
+            f"--------------------------------\n"
+            f"❌ Status: *HALTED (INVALID)*\n"
+            f"🆔 Case ID: {task.case_id}\n\n"
+            f"🛑 *Critical Violation:*\n"
+            f"{violation_text}\n\n"
+            f"💡 Action: Audit stopped. Manual review required."
         )
-        
-        # Integration Point: Twilio / WhatsApp API
-        logger.info(f"[WHATSAPP_MOCK_SEND] To: Auditor | Body: \n{message}")
-        task.notification_channel = "WhatsApp"
 
     @staticmethod
-    def _send_cleared_notice(task):
-        """
-        Template for CLEARED state.
-        "The PASS is the product." 
-        """
-        # Workflow serializes passed rules into "passed" key
-        passed_rules = task.verdict_json.get('passed', [])
-        
-        message = (
-            f"✅ *MedGate Certified Audit*\n"
-            f"Case ID: {task.case_id}\n"
-            f"Status: CLEARED\n"
-            f"Protocols Passed: {len(passed_rules)}\n"
-            f"Certification: Validated by MedGemma Forensic Engine."
+    def _build_cleared_message(task):
+        """Constructs a 'Digital Certificate' for valid claims."""
+        passed_rules = task.verdict_json.get('passed_rules', [])
+        protocol_count = len(passed_rules)
+        top_protocols = list(set([r.get('protocol', 'Standard') for r in passed_rules[:3]]))
+        protocol_summary = ", ".join(top_protocols)
+
+        return (
+            f"✅ *MEDGATE CERTIFIED AUDIT*\n"
+            f"--------------------------------\n"
+            f"🛡️ Status: *CLEARED (VALID)*\n"
+            f"🆔 Case ID: {task.case_id}\n\n"
+            f"📊 *Forensic Summary:*\n"
+            f"• Protocols Verified: {protocol_count}\n"
+            f"• Logic Gate: MedGemma Forensic Engine\n"
+            f"• Scope: {protocol_summary}\n\n"
+            f"🔗 Certificate Issued: {task.id}"
         )
-        
-        logger.info(f"[WHATSAPP_MOCK_SEND] To: Auditor | Body: \n{message}")
-        task.notification_channel = "WhatsApp"

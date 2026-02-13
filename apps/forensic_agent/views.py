@@ -9,6 +9,8 @@ from rest_framework.parsers import MultiPartParser, JSONParser
 from apps.forensic_agent.workflow import ForensicAuditorAgent
 from apps.forensic_agent.research import ForensicResearchAgent 
 from apps.forensic_agent.extraction import ClinicalExtractor
+from apps.forensic_agent.models import AuditTask
+from apps.forensic_agent.iot_agent import ForensicIoTAgent # <--- Now correctly used
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +24,7 @@ class ForensicReasoningView(APIView):
     parser_classes = [MultiPartParser, JSONParser]
 
     def post(self, request):
-        # [FIX] Initialize claim_data with an empty events list to prevent Extraction Void bottleneck
+        #  Initialize claim_data with an empty events list to prevent Extraction Void bottleneck
         claim_data = {"events": []}
 
         # [BRANCH A] Handle PDF Upload
@@ -36,7 +38,6 @@ class ForensicReasoningView(APIView):
             
             try:
                 # RUN THE EXTRACTOR
-                # We update the default structure with extracted data
                 extracted_json = ClinicalExtractor.pdf_to_json(tmp_path)
                 if extracted_json and isinstance(extracted_json, dict):
                     claim_data.update(extracted_json)
@@ -53,7 +54,7 @@ class ForensicReasoningView(APIView):
                 if os.path.exists(tmp_path):
                     os.unlink(tmp_path)
                     
-        # [BRANCH B] Handle Legacy JSON (Research Mode / Direct API)
+        #  Handle Legacy JSON (Research Mode / Direct API)
         else:
             raw_data = request.data.get("claim_data", {})
             if isinstance(raw_data, str):
@@ -75,15 +76,29 @@ class ForensicReasoningView(APIView):
         # Context parameters (Default to 'auto')
         specialty = request.data.get("specialty", "auto")
         
-        # [NEW] Extract Scope (Default to 'clinical' for patient safety)
-        # This prevents facility-level rules from bricking patient audits.
+        #  Extract Scope (Default to 'clinical' for patient safety)
         scope = request.data.get("scope", "clinical")
         
         # --- PIPELINE SWITCH ---
+
+        # [BRANCH C] IOT PIPELINE (The missing link)
+        if mode == "iot_stream":
+            agent = ForensicIoTAgent(case_id=case_id)
+            # This runs the logic that checks Generator/Water rules instead of HIV rules
+            task = agent.run_iot_check(
+                sensor_data=claim_data,
+                scope=scope 
+            )
+            # Return "Dumb" receipt. The sensor doesn't need to know the verdict.
+            return Response({
+                "task_id": task.id,
+                "status": "RECEIVED",
+                "verdict": "PENDING_AUDIT" 
+            })
+
         if mode == "research":
-            # [BRANCH C] Research Pipeline (No Audit/Gating)
+            # [BRANCH D] Research Pipeline (No Audit/Gating)
             research_agent = ForensicResearchAgent(case_id=case_id)
-            # [FIX] Passing 'scope' to align with ForensicRAG deterministic filtering logic
             result = research_agent.run_research(
                 query_text=query,
                 specialty=specialty,
@@ -91,7 +106,7 @@ class ForensicReasoningView(APIView):
             )
             return Response(result)
 
-        # --- AUDIT PIPELINE (Original) ---
+        # [BRANCH E] AUDIT PIPELINE (Original)
         patient_age = request.data.get("patient_age")
         event_timestamp = request.data.get("event_timestamp")
 
@@ -105,7 +120,7 @@ class ForensicReasoningView(APIView):
             specialty=specialty,
             patient_age=patient_age,
             event_timestamp=event_timestamp,
-            scope=scope #  Passing the scope constraint
+            scope=scope # Passing the scope constraint
         )
 
         # 4. Response
@@ -115,14 +130,36 @@ class ForensicReasoningView(APIView):
             "status": task.status,          
             "verdict": "VALID" if task.status == 'CLEARED' else "INVALID",
             "communication_sent": task.notification_sent,
-            
-            # THE AI NARRATIVE (Subject to failure/fallback)
             "audit_result": task.final_report,
-            
-            # --- THE CORE EVIDENCE (Deterministic Source of Truth) ---
-            # This contains the raw Passed Rules and Violations directly from the Gate.
             "forensic_evidence": task.verdict_json,
-            
-            # The Agent Logs
             "agent_trace": task.agent_trace 
         })
+    
+class AuditTaskListView(APIView):
+    """
+    Feeds the Remote Auditor Dashboard.
+    Returns the 20 most recent audits (IoT streams + Documents).
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        tasks = AuditTask.objects.all().order_by('-started_at')[:20]
+        data = []
+        
+        for t in tasks:
+            # Construct response matching ForensicResponse interface where possible
+            data.append({
+                "id": str(t.id),
+                "task_id": str(t.id),
+                "case_id": t.case_id,
+                "status": t.status,
+                "verdict": "VALID" if t.status == 'CLEARED' else "INVALID",
+                "created_at": t.started_at,
+                "forensic_evidence": t.verdict_json or {},
+                "audit_result": t.final_report or {},
+                "claim_data": t.claim_payload,
+                "agent_trace": t.agent_trace,
+                "notification_channel": t.notification_channel
+            })
+            
+        return Response(data)

@@ -40,7 +40,7 @@ class AuditTask(models.Model):
 
     # Communication Log
     notification_sent = models.BooleanField(default=False)
-    notification_channel = models.CharField(max_length=50, blank=True) # e.g., "WhatsApp"
+    notification_channel = models.CharField(max_length=255, blank=True) # e.g., "WhatsApp"
 
     def __str__(self):
         return f"{self.case_id} - {self.status}"

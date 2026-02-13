@@ -46,12 +46,18 @@ INSTALLED_APPS = [
 ]
 
 AUTH_USER_MODEL = "users.User"
+
 # ==================== External Services ====================
 
+# Twilio WhatsApp API
+TWILIO_ACCOUNT_SID = config("TWILIO_ACCOUNT_SID", default=None)
+TWILIO_AUTH_TOKEN = config("TWILIO_AUTH_TOKEN", default=None)
+TWILIO_WHATSAPP_NUMBER = config("TWILIO_WHATSAPP_NUMBER", default="whatsapp:+14155238886")
 
+# The Auditor's receiving number (Ensure format is +254...)
+AUDITOR_WHATSAPP_NUMBER = config("AUDITOR_WHATSAPP_NUMBER", default="+254741134327")
 
-
-
+# ... (Cloudinary and rest of settings)
 # ==================== Cloudinary ====================
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': config('CLOUDINARY_NAME'),
