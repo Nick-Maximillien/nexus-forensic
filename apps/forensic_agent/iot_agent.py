@@ -97,7 +97,7 @@ class ForensicIoTAgent:
 
             # 6. Alerting (Layer 3)
             # Only alert on failure (HALTED) to avoid spamming the auditor for passing checks
-            if not verdict.is_valid:
+            if verdict.is_valid:
                 NotificationService.send_notification(task)
 
             return task

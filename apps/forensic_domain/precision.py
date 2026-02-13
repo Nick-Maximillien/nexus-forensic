@@ -6,7 +6,7 @@ class ForensicGateLayer:
     """
     Enforces deterministic forensic rules. 
     This is the code that 'Audits medical narratives'
-    Now upgraded to capture SCOPE and INTENT context in the verdict.
+    Now upgraded to perform Semantic State Adjudication for IoT Telemetry.
     """
 
     # Morphology Engine: Ignore these administrative fluff words to find the Medical Truth.
@@ -100,6 +100,7 @@ class ForensicGateLayer:
             targets = [str(raw_req).lower().strip()]
 
         found = False
+        iot_violation = None
         
         # [SCALABLE FIX]: Define Scope Contexts
         UNIVERSAL_QUANTIFIERS = {
@@ -115,7 +116,9 @@ class ForensicGateLayer:
         # [FIX]: Robust Context Detectors (Clinical vs IoT)
         ev_blob_all = str(events).lower()
         is_adult_patient = any(m in ev_blob_all for m in ["para", "gravida", "gestation", "pregnancy", "adult", "28-year-old", "anc visit"])
-        is_iot_context = any(m in ev_blob_all for m in ["online", "offline", "psi", "reservoir", "telemetry", "generator", "manifold"])
+        
+        # Enhanced detection: Check for specific sensor keywords from the simulator
+        is_iot_context = any(m in ev_blob_all for m in ["online", "offline", "psi", "reservoir", "telemetry", "generator", "manifold", "grid power"])
 
         # [FIX 1] Move Unknown Bypass OUTSIDE loop (Handles empty events list)
         for target in targets:
@@ -133,22 +136,65 @@ class ForensicGateLayer:
                 return None
 
             # [NEW SURGERY] Telemetric Immunity Gate: If context is IoT, ignore purely administrative document rules
-            # This prevents failing a power sensor because there isn't a written "Study", "Signage", "Manual" or "Plan".
-            # [FIXED]: Added "studies", "results", "burden", and "status" to solve the specific logic crash.
+            # This prevents failing a power sensor because there isn't a written "Study", "Plan" or "Manual".
             if is_iot_context and any(kw in target for kw in ["plan", "study", "studies", "documentation", "manual", "policy", "guideline", "protocol", "signage", "route", "awareness", "escalation", "program", "audit", "mechanism", "results", "burden", "status"]):
                 return None
 
         # 2. Iterate through all extracted events
         for e in events:
+            ev_name = str(e.get('name', '')).lower()
             # [FIX 2] Expand Search Blob (Field Myopia Fix)
             ev_blob = " ".join([str(v) for v in e.values() if v]).lower()
             ev_tokens = set(ev_blob.split())
+            
+            # Adjudication variables for State evaluation
+            raw_val = e.get('value')
+            val_str = str(raw_val).upper() if raw_val is not None else ""
+            try:
+                # Handle cases where value might be string "85%" or "0PSI"
+                clean_val = str(raw_val).replace('%','').replace('PSI','').replace('psi','').strip()
+                val_num = float(clean_val) if clean_val.replace('.','',1).lstrip('-').isdigit() else None
+            except:
+                val_num = None
 
             # 3. Check against Targets
             for target in targets:
                 if not target: continue
                 
-                # A. Exact Substring Match (High Confidence)
+                # [NEW ADJUDICATION SURGERY]: Semantic State Logic for IoT
+                # Maps sensor values to the "Adequacy" or "Reliability" required by the law.
+                if is_iot_context:
+                    # A. Power Adjudication (Logic: Reliable Power = Grid or Generator must be ONLINE)
+                    if ("power" in target or "electricity" in target) and ("grid" in ev_blob or "generator" in ev_blob):
+                        if "ONLINE" in val_str:
+                            found = True; break
+                        else:
+                            iot_violation = f"Infrastructure Failure: '{target}' is currently OFFLINE."
+                            continue # Don't set found, keep looking for a redundant backup that might be ONLINE
+
+                    # B. Water Adjudication (Logic: Safe Running Water = Level must be above Safety Buffer)
+                    if ("water" in target or "sanitation" in target) and ("reservoir" in ev_blob or "level" in ev_blob):
+                        if val_num is not None and val_num >= 20.0:
+                            found = True; break
+                        elif val_num is not None:
+                            iot_violation = f"Resource Exhaustion: Safe Water Level is critical ({val_num}%)."
+                            continue
+
+                    # C. [OXYGEN FIX]: Sufficient Oxygen = Pressure must be above Medical Minimum
+                    if ("oxygen" in target or "manifold" in target or "infrastructure" in target) and ("psi" in ev_blob or "manifold" in ev_blob):
+                        if val_num is not None and val_num >= 500.0:
+                            found = True; break
+                        elif val_num is not None:
+                            iot_violation = f"Critical Depletion: Oxygen Pressure is below medical safety limits ({val_num} PSI)."
+                            continue
+
+                # [Standard Match Guard]: 
+                # Don't let a generic keyword match "rescue" an Oxygen failure from the PSI check above.
+                if is_iot_context and any(kw in target for kw in ["oxygen", "water", "power", "grid", "psi"]):
+                    if iot_violation and target in ev_blob:
+                        continue
+
+                # Standard Exact Substring Match (for non-IoT or passed IoT state checks)
                 if target in ev_blob:
                     found = True
                     break
@@ -172,20 +218,6 @@ class ForensicGateLayer:
                     if any(m in ev_blob for m in admin_proxies):
                         found = True
                         break
-
-                # [NEW SURGERY]: IoT Infrastructure Evidence Bridge
-                # Maps sensor status (ONLINE/PSI/%) to KQMH structural requirements.
-                if is_iot_context:
-                    # 1. Power Supply Bridge
-                    if ("power" in target or "electricity" in target) and ("online" in ev_blob or "grid" in ev_blob or "generator" in ev_blob):
-                        found = True; break
-                    # 2. Water Supply Bridge
-                    if ("water" in target or "sanitation" in target) and ("reservoir" in ev_blob or "level" in ev_blob):
-                        found = True; break
-                    # 3. Infrastructure/Environment Bridge
-                    if ("environment" in target or "infrastructure" in target or "facilities" in target) and ("psi" in ev_blob or "online" in ev_blob or "telemetry" in ev_blob or "manifold" in ev_blob):
-                        # Functional telemetry heartbeats act as proof of operational status.
-                        found = True; break
                 
                 # B. MEDICAL ROOT LOGIC (The Stopword Fix)
                 req_tokens = [t for t in target.split() if t not in ForensicGateLayer.STOPWORDS]
@@ -214,6 +246,8 @@ class ForensicGateLayer:
             if found: break
         
         if not found:
+            # If we explicitly caught a state violation (OFFLINE/Low Level), return that specific reason.
+            if iot_violation: return iot_violation
             # Return a readable error using the first target as the label
             display_req = targets[0] if targets else "Unknown Requirement"
             return f"Missing Artifact: '{display_req}' not found in claim evidence."
@@ -240,7 +274,10 @@ class ForensicGateLayer:
         if raw_val is None: return None
         
         # Normalize forensic measurements to base units
-        val = ForensicGateLayer._convert_to_base(float(raw_val), meas_unit)
+        try:
+            val = ForensicGateLayer._convert_to_base(float(str(raw_val).replace('%','')), meas_unit)
+        except (ValueError, TypeError):
+            return None
         
         if min_val is not None and val < min_val:
             return f"Vital Failure: {target} is {val} (Required Min: {min_val})"

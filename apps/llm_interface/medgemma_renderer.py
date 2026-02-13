@@ -151,14 +151,14 @@ def generate_forensic_report(claim_data: dict, verdict: ForensicVerdict) -> dict
     2. If STATUS is CLEARED: Generate a certification statement confirming protocol adherence.
     
     3. If STATUS is HALTED: Generate a professional "Non-Compliance Summary" explaining WHY it failed.
-       - PRIORITY: Categorize failures by INTENT (e.g., SAFETY vs COMPLIANCE).
-       - Focus first on 'safety' or 'quality' violations as they are critical.
-       - 'Compliance' or 'Documentation' errors should be noted as administrative.
-       - Cite the specific missing artifacts or timeline errors.
-       - Do not be vague.
-       - Use the exact text from the VIOLATIONS block.
-       - Tone: Objective, Legal, Explanatory.
-       
+        - PRIORITY: Categorize failures by INTENT (e.g., SAFETY vs COMPLIANCE).
+        - Focus first on 'safety' or 'quality' violations as they are critical.
+        - 'Compliance' or 'Documentation' errors should be noted as administrative.
+        - Cite the specific missing artifacts or timeline errors.
+        - Do not be vague.
+        - Use the exact text from the VIOLATIONS block.
+        - Tone: Objective, Legal, Explanatory.
+        
     4. OUTPUT FORMAT (Strict JSON):
     {{
         "certification_statement": "A clear 2-3 sentence summary of the audit outcome.",
@@ -203,7 +203,8 @@ def generate_forensic_report(claim_data: dict, verdict: ForensicVerdict) -> dict
         logger.info("🔮 Invoking MedGemma Endpoint...")
         response = endpoint.predict(instances=[{
             "inputs": sanitize_prompt(gemma_prompt),
-            "parameters": {"temperature": 0.1, "max_output_tokens": 1024, "top_p": 0.95}
+            # [FIX] Increased max_output_tokens from 1024 to 4096 to prevent report truncation
+            "parameters": {"temperature": 0.1, "max_output_tokens": 4096, "top_p": 0.95}
         }])
         
         raw_output = response.predictions[0]
@@ -312,7 +313,8 @@ def generate_research_summary(query: str, rules: list) -> dict:
             # Text generation config (Non-JSON)
             config = GenerationConfig(
                 temperature=0.1, 
-                max_output_tokens=1024
+                # [FIX] Increased max_output_tokens from 1024 to 4096 to solve research truncation
+                max_output_tokens=4096
             )
 
             safety_settings = {
