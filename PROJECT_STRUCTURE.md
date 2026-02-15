@@ -149,12 +149,14 @@ nexus-forensic/
 - **models.py**: `ForensicRule`, `ClinicalProtocol`, `ProtocolVersion`
 - **ingestion/parser.py**: Docling-based PDF extraction
 - **ingestion/llm_normalizer.py**: MedGemma structural compilation
+- **Local inference**: GGUF via llama-cpp-python
+- **Cloud inference**: Vertex AI endpoint
 - **Database**: PostgreSQL (ForensicRule table with pgvector embeddings)
 
 ### Layer 1 — Context-Aware Retrieval
 **Directory**: `apps/forensic_rag/`
 - **utils.py**: Vertex AI embedding loader & batch generation
-- **retrieval.py**: Hybrid search (semantic + keyword)
+- **retrieval.py**: Hybrid search (semantic + keyword) using MedLM embeddings 
 - **Database**: PostgreSQL with pgvector L2 distance search
 
 ### Layer 2 — Deterministic Reasoning Core
@@ -173,9 +175,7 @@ nexus-forensic/
 
 ### Layer 4 — Narrative & Human Interface
 **Directory**: `apps/llm_interface/`
-- **medgemma_renderer.py**: Fine-tuned MedGemma narrative generation
-- **Local inference**: GGUF via llama-cpp-python
-- **Cloud inference**: Vertex AI endpoint
+- **medgemma_renderer.py**: Base MedGemma narrative generation
 - **Post-verdict rendering only** (sandboxed)
 
 ---
@@ -291,29 +291,29 @@ python scripts/medgemma_conversion.py --input model.bin --output model.gguf
 
 ---
 
-## MedGemma Impact Challenge Focus
+
 
 ### Key Innovation Points
 
-1. **Fine-Tuned MedGemma as Constrained Renderer** (`apps/llm_interface/medgemma_renderer.py`)
-   - Novel Task Prize candidate
+1. **Fine-Tuned MedGemma as Constrained Renderer** (`apps/forensic_corpus/llm_normalizer.py`)
+   - Novel Task for an llm
    - Trained on forensic transformation only
    - Zero diagnostic reasoning
 
 2. **Agentic Workflow** (`apps/forensic_agent/workflow.py`)
    - Deterministic agent orchestration
    - Closed-loop communication via Twilio
-   - Agentic Workflow Prize candidate
+   - Agentic Workflow (Constrained agent)
 
 3. **Edge AI** (`scripts/medgemma_conversion.py`)
    - GGUF conversion for local inference
    - llama-cpp-python integration
-   - Edge AI Prize candidate
+   - Quantized Edge AI (fine-tuned Medgemma)
 
 4. **HAI-DEF Integration**
    - MedLM embeddings (Layer 1)
-   - MedGemma fine-tuning (Layer 4)
-   - Vertex AI endpoints (fallback)
+   - MedGemma fine-tuning (Layer 0)
+   - Vertex AI endpoints 
 
 ---
 
@@ -350,6 +350,3 @@ python manage.py test apps.forensic_rag     # Test retrieval
 
 ---
 
-**Last Updated:** February 16, 2026  
-**Challenge Target:** Google MedGemma Impact Challenge  
-**Tracks:** Agentic Workflow Prize, Novel Task Prize, Edge AI Prize
