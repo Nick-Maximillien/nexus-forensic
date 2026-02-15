@@ -204,6 +204,160 @@ This README is intended as a comprehensive starting point. If you want, I can no
 - Generate a shorter quickstart `README_quick.md`
 - Expand security & compliance checklist with PHI handling SOPs
 
+System Snapshot (Med Gate Forensic Architecture V3)
+-------------------------------------------------
+
+No pages inside
+Med Gate Forensic Architecture V3
+Version: v2.1 (System Grade)
+Status: 🟢 Production Ready
+Type: Layered Deterministic Compliance Engine
+Core: Immutable Knowledge Base + Context-Aware Retrieval + Deterministic Logic Gates
+
+Executive summary
+-----------------
+
+MedGate is a forensic medical audit and compliance system designed to validate clinical, facility, and operational claims against authoritative medical protocols (NCCN, AHA, CMS, etc.). The platform intentionally separates Law (protocols), Fact (evidence), and Judgment (deterministic logic) so verdicts are auditable and hallucination-free. MedGemma (HAI-DEF) models are used for structural compilation, translation, and rendering — but NEVER to decide PASS/FAIL outcomes.
+
+Key differentiators
+-------------------
+
+- Zero Hallucination by Construction: PASS / FAIL decisions are produced only by deterministic Python logic (Forensic Gates).
+- Layered Architecture: Immutable knowledge, retrieval, reasoning, agentic workflows, and narrative are stratified so UI/agents can change independently of correctness.
+- Scope- and Intent-Aware Enforcement: Clinical safety, facility/infrastructure compliance, and administrative concerns are separated to avoid false failures and prioritize safety.
+
+Layered Model (detailed)
+------------------------
+
+MedGate uses four foundational layers plus an execution plane:
+
+- Layer 0 — Immutable Knowledge Base (Ground Truth)
+	- Contents: ClinicalProtocol documents, normalized `ForensicRule` objects, scope/intent tags, versioning and time windows, vector embeddings in `pgvector`.
+	- Properties: Versioned, immutable, auditable, time-travel safe.
+
+- Layer 1 — Context-Aware Retrieval & Cross-Referencing
+	- Purpose: Determine which rules apply given scope, specialty, and time window.
+	- Components: Audit planning, constrained RAG retrieval (structure + metadata only), deterministic filters on scope/specialty/temporal validity.
+	- Models: Structural compiler uses a fine-tuned MedGemma (translator) to normalize ingested protocols into typed rules and logic-ready fragments.
+
+- Layer 2 — Deterministic Reasoning Core (Forensic Gates)
+	- Purpose: Execute rule-specific Python executors that apply math/logic to evidence.
+	- Outputs: PASS / FAIL verdicts, executable traces, evidence chains, and machine-verifiable audit trails.
+	- Note: This layer is data-source agnostic — PDFs, structured JSON, streaming IoT signals are treated uniformly as evidence.
+
+- Layer 3 — Agentic Workflows (Thin Orchestration)
+	- Purpose: Orchestrate audits, research queries, IoT streaming, and notification flows.
+	- Modes: Forensic Audit (Strict Mode), Clinical Research (Discovery Mode), IoT Compliance Agent (continuous streaming). Agents compose layers but do not implement adjudication logic.
+
+- Layer 4 — Narrative & Human Interface
+	- Purpose: Render legal-grade explanations, human summaries, and PDF compliance reports.
+	- Components: Fine-tuned MedGemma renderer(s) (MedGemma-Fine), MedGemma translator for structural compilation, and optional LLM fallbacks for non-decision text.
+
+Core capabilities (expanded)
+---------------------------
+
+- Forensic Audit — Strict Mode
+	- Accepts: PDFs, JSON, IoT streams
+	- Produces: Deterministic PASS / FAIL with detailed evidence chains and a compliance matrix.
+
+- Clinical Research — Discovery Mode
+	- Purpose: Explore authoritative protocols without patient data and produce immutable clinical truths, with scope/intent metadata.
+
+- Intelligent Protocol Ingestion
+	- Pipeline: OCR (Docling / RapidOCR) → Structural Compiler (Fine-Tuned MedGemma translator) → Deterministic rule-typing (10 supported types) → Vector embedding (text-embedding-004) → Insert into Immutable KB.
+
+- Smart IoT Compliance
+	- Ingests facility sensors and patient-monitoring streams as evidence; applies forensic gates continuously or on schedule.
+
+Data model (the constitution)
+----------------------------
+
+- `ClinicalProtocol`:
+	- `specialty`, `version`, `validity_window`, provenance metadata
+- `ForensicRule`:
+	- `rule_code`, `rule_type`, `logic_config` (JSON), `scope_tags`, `intent_tags`, `embedding` (pgvector), `protocol` (FK)
+
+MedGemma & HAI-DEF usage (what I missed and added)
+-----------------------------------------------
+
+- MedGemma roles in the system:
+	- Structural Compiler (MedGemma-Translator): used in ingestion to convert raw protocol text into typed structured fragments and rule metadata. This is a fine-tuned MedGemma model optimized to emit deterministic schema outputs that feed the ForensicRule builder.
+	- MedGemma Renderer (MedGemma-Fine): fine-tuned renderer that converts machine traces and evidence chains into professional PDF reports and legal-grade summaries (Layer 4).
+	- Translation / Normalization: a separate MedGemma instance acts as translator to normalize local abbreviations and jurisdictional variants into canonical protocol language before embedding.
+
+- Where the models live in repo:
+	- `apps/llm_interface/medgemma_renderer.py` — renderer integrations and helper wrappers
+	- `scripts/medgemma_training.py` and `scripts/medgemma_training_v1.py` — fine-tuning utilities and training harnesses
+
+- Important rules:
+	- LLMs (MedGemma or other HAI-DEF models) are used only for structuring, translation, and human-facing text; they are NOT used for adjudication.
+	- All PASS/FAIL logic is executed by Python executors in the `forensic_domain` layer.
+
+Model & embedding details
+------------------------
+
+- Embeddings: `text-embedding-004` is used for producing vector fingerprints inserted into `pgvector`. The repo also contains a specialized MedLM fallback (HAI-DEF medlm embeddings via Vertex). See `apps/forensic_rag/utils.py` for combined usage.
+- LLM fallbacks: `Gemini 2.5 Flash` is used optionally as a fallback for non-critical rendering tasks.
+
+Technology stack (reconciled)
+----------------------------
+
+Frontend
+- Next.js 14 (App Router), TypeScript, Tailwind CSS
+
+Backend
+- Django + DRF, Python 3.11, Celery + Redis
+
+Storage
+- PostgreSQL 15 + pgvector, Google Cloud Storage (optional), Cloudinary
+
+AI & ML
+- Google Vertex AI (HAI-DEF): MedGemma (fine-tuned variants), medlm embeddings, `text-embedding-004`
+- Local / Edge: `llama-cpp-python` (optional), CPU PyTorch targets for edge research
+
+Integration points
+------------------
+
+- Vertex AI: Embeddings, MedGemma fine-tuning, rendering, and translator inference.
+- IoT Gateways: Evidence ingestion endpoints for streaming telemetry.
+- PostgreSQL: Rules, auditable trails, and vector indexes.
+- WhatsApp / Twilio: Safety alerts and notification channels (mockable for tests).
+
+MedGemma Impact Challenge — submission notes
+-------------------------------------------
+
+You are optimizing to win the MedGemma Impact Challenge. This repo is a strong baseline — to maximize judging criteria, ensure you supply:
+
+- High-quality writeup (3 pages or less) that clearly documents:
+	- Which HAI-DEF models you used and why (MedGemma-Translator, MedGemma-Fine, medlm embeddings)
+	- Reproducible code and the exact training/fine-tuning commands and datasets (link to `scripts/medgemma_training.py`)
+	- Quantitative evidence of model performance (retrieval precision, ingestion correctness, renderer fidelity)
+- Public code repo or reproducible Docker container
+- Short demo video (≤ 3 minutes) showing Strict Mode audit, ingestion pipeline, and rendered compliance report
+- Optional: Hugging Face model trace to show open-weight lineage to HAI-DEF (if you publish a derived model)
+
+Suggested deliverables I can prepare for the submission
+------------------------------------------------------
+
+- A concise 3-page writeup following the Kaggle template (I'll draft)
+- A 3-minute demo script and suggested screencast plan
+- A `README_quick.md` with only the commands needed for reviewers to run the demo (I can generate)
+- A model-trace checklist for Hugging Face publishing (if you plan to publicize fine-tuned weights)
+
+Next steps I can take now
+------------------------
+
+- Finalize README additions (this change)
+- Produce `README_quick.md` with minimal run commands
+- Draft the 3-page Kaggle writeup and a demo storyboard
+- Generate Mermaid diagram SVG/PNG for inclusion in slide / writeup
+
+If you'd like, I'll now:
+- Generate `README_quick.md` and commit it
+- Draft the 3-page writeup skeleton (first pass)
+- Produce an SVG from the Mermaid diagram and add it to `docs/`
+
+
 Architecture diagram
 --------------------
 
