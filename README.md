@@ -33,13 +33,28 @@ This creates systemic risk in clinical audit trails, insurance documentation, an
 | **Structural Compiler** | Hugging Face | [Nexus-Forensic-MedGemma-4B](https://huggingface.co/zico-hubb/nexus-forensic-medgemma-4b) |
 | **Edge Artifact (GGUF)** | Hugging Face | [Nexus-Forensic-4B-GGUF](https://huggingface.co/zico-hubb/nexus-forensic-medgemma-4b-gguf) |
 
+## Project Structure
+
+For a complete breakdown of the codebase organization, including all directories, modules, and their purposes, see [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md).
+
+**Quick Overview:**
+- `apps/forensic_domain/` — Deterministic logic gates (Layer 2)
+- `apps/forensic_corpus/` — Knowledge base and ingestion (Layer 0)
+- `apps/forensic_rag/` — Retrieval and embeddings (Layer 1)
+- `apps/forensic_agent/` — Orchestration and workflows (Layer 3)
+- `apps/llm_interface/` — MedGemma narrative generation (Layer 4)
+- `scripts/` — Fine-tuning, conversion, and training utilities
+- `data/` — Training datasets and SQL exports
+
+---
+
 ## What Nexus Forensic Does
 
 ## Core Capabilities
 
 Nexus Forensic operates in three distinct modes to ensure healthcare integrity:
 
-* **Forensic Audit (The Verifier):** Digitally "checks the homework" of a medical claim. It ensures that what was documented actually follows the medical law (protocols) and that the timeline of events is physically possible. Compliance is critical requirement in Health and Insurance sectors.
+* **Forensic Audit (The Verifier):** Digitally "checks the homework" of a medical claim. It ensures that what was documented actually follows the medical law (protocols) and that the timeline of events is physically possible. Compliance is a critical requirement in Health and Insurance sectors.
 * **Clinical Research (The Library):** A specialized search engine for medical protocols. It allows auditors, medical students & researchers to ask complex questions about MoH guidelines and receive answers that are 100% grounded in official documents, with zero "creative writing" from the AI.
 * **Smart IoT Compliance (The Heartbeat):** Real-time monitoring of facility infrastructure. It allows a single county auditor to monitor the "vital signs" (Oxygen pressure, Backup power, Water levels) of every hospital in the region simultaneously, triggering alerts the moment a safety standard is violated.
 
@@ -117,7 +132,7 @@ Nexus Forensic debuts the concept of a **Neurosymbolic Structural Compiler**. Un
 
 ### Why Fine-Tuning Matters
 
-While Base MedGemma is optimized for clinical dialogue, we utilize a  **Fine-Tuned adapter to function as a  **high-precision Structural Compiler for forensic logic extraction and forensic audit specificity**:
+While Base MedGemma is optimized for clinical dialogue, we utilize a  **Fine-Tuned adapter** to function as a **high-precision Structural Compiler** for forensic logic extraction and forensic audit specificity*:
 
 #### Use Case: Knowledge Graph Generation & Protocol Compilation (Structural Compiler)
 
@@ -147,7 +162,7 @@ Rather than conversational chat, Nexus Forensic implements a **forensic auditing
 2. **Traverses the Knowledge Graph** via constrained RAG (Layer 1). Rather than a standard text search, the agent uses the Neurosymbolic Compiler outputs to identify the path of compliance through the governing protocols.
 3. **Executes forensic gates** on all evidence (Layer 2 deterministic logic)
 4. **Invokes the Clinical Narrator (Base MedGemma) to translate deterministic logic traces into human-readable forensic reports.** or explicit refusal (Layer 4 MedGemma rendering)
-5. **Communicates state changes** via closed-loop notifications (Twilio WhatsApp / Email)
+5. **Communicates state changes** via web app and closed-loop notifications (Twilio WhatsApp / Email)
 
 **Agentic ochestration**: The agent composes rule-based and neural components to achieve audit completion while maintaining full transparency and auditability.
 
@@ -161,7 +176,7 @@ Rather than conversational chat, Nexus Forensic implements a **forensic auditing
 
 ## Closed-Loop Communication (Twilio WhatsApp)
 
-The Agentic Workflow is finalized by a real-time notification layer. The system moves from a "Dashboard" to a "Forensic Terminal" by pushing critical state changes directly to auditors:
+The Agentic Workflow is finalized by a real-time notification layer. The system complements the web dashboard with a "Forensic Terminal" pushing critical state changes directly to auditors:
 
 * **Certified Audit Reports:** Upon reaching `STATE_CLEARED`, a digital certificate and MedGemma-rendered summary are dispatched via WhatsApp.
 * **Violation Alerts:** If the Logic Gates reach `STATE_HALTED`, the specific rule code (e.g., KQMH-7.5) and the reason for failure are sent immediately.
@@ -194,9 +209,10 @@ The Agentic Workflow is finalized by a real-time notification layer. The system 
   - **HAI-DEF medlm-embeddings-v1**: Used as a callable tool for high-fidelity clinical RAG.
   - **Nexus-Forensic-4B**: Fine-tuned structural compiler.
   - **MedGemma 4B IT**: Base clinical narrator.
+- **Fine-tuning Workspace**: Kaggle Data Science
 - **Communication**: Twilio WhatsApp Business API (Real-time Forensic Alerts)
 - **Infrastructure**: GCP Cloud SQL for PostgreSQL (Multi-regional high availability)
-- **Edge Deployment**: GGUF Quantized models for offline facility use
+- **Edge Deployment**: Medgemma GGUF Quantized models for offline facility use
 
 ## Frontend-Backend Integration
 
@@ -225,17 +241,15 @@ The primary entry point for all forensic operations.
   }
 }
 ```
+**Expected Response (`ForensicResponse`):**
+- The backend returns a comprehensive audit artifact, including the narrative explanation, deterministic evidence, and the agent's internal "thought trace."
 
-```
-Expected Response (ForensicResponse):
-The backend returns a comprehensive audit artifact, including the narrative explanation, deterministic evidence, and the agent's internal "thought trace."
-
-```audit_result:``` Human-readable certification statements and compliance matrices.
+````audit_result:``` Human-readable certification statements and compliance matrices.
 
 ```forensic_evidence:``` Immutable pass/fail rules and specific violation traces retrieved from the Knowledge Graph.
 
 ```agent_trace:``` A step-by-step execution log (INIT -> PLANNING -> RETRIEVAL -> REASONING -> RENDERING) for 1:1 auditability.
-```
+
 
 ## Installation
 
