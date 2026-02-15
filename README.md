@@ -2,11 +2,11 @@
 
 **Deterministic Compliance Engine for Medical Claims using MedGemma and Google HAI-DEF**
 
-> A forensic medical audit system that validates clinical, facility, and operational claims against authoritative health protocols. Unlike LLM-centric systems, Nexus Forensic enforces deterministic logic gates to eliminate hallucinations in compliance adjudication. Designed for the Google MedGemma Impact Challenge.
+> A forensic medical audit system that validates clinical, facility, and operational claims against authoritative health protocols. Unlike LLM-centric systems, Nexus Forensic enforces deterministic logic gates to eliminate hallucinations in compliance adjudication. Currently being piloted within the Kenyan healthcare ecosystem to enforce Ministry of Health (MoH) clinical guidelines and KQMH quality standards through computable medical law.
 
 ---
 
-## Problem Statement
+## Beyond Hallucination: The Structural Limits of Clinical Verification
 
 Medical language models fail not primarily through hallucination, but through **verification failure**:
 
@@ -35,13 +35,43 @@ This creates systemic risk in clinical audit trails, insurance documentation, an
 
 ## What Nexus Forensic Does
 
-| Function | Approach |
-|----------|----------|
-| Diagnose |  No—this is for compliance, not care |
-| Recommend treatment |  No—this is forensic, not clinical |
-| Validate compliance |  Yes—deterministic logic gates |
-| Audit narratives |  Yes—enforces temporal consistency |
-| Render findings | Render findings |  Yes—Base MedGemma (Clinical Narrator) |
+## Core Capabilities
+
+Nexus Forensic operates in three distinct modes to ensure healthcare integrity:
+
+* **Forensic Audit (The Verifier):** Digitally "checks the homework" of a medical claim. It ensures that what was documented actually follows the medical law (protocols) and that the timeline of events is physically possible. Compliance is critical requirement in Health and Insurance sectors.
+* **Clinical Research (The Library):** A specialized search engine for medical protocols. It allows auditors, medical students & researchers to ask complex questions about MoH guidelines and receive answers that are 100% grounded in official documents, with zero "creative writing" from the AI.
+* **Smart IoT Compliance (The Heartbeat):** Real-time monitoring of facility infrastructure. It allows a single county auditor to monitor the "vital signs" (Oxygen pressure, Backup power, Water levels) of every hospital in the region simultaneously, triggering alerts the moment a safety standard is violated.
+
+---
+
+## Why "Forensic" Science for Clinical Auditing?
+
+Someone may ask: *Why apply forensic rules to a medical guideline?* In regulated healthcare and insurance, a medical record is a legal document. Nexus Forensic treats every patient encounter like an "evidence set." We apply **10 Deterministic Forensic Rules** to bridge the gap between prose and proof:
+
+1.  **Temporal Consistency:** Cause must precede effect. (You cannot treat a condition before it is diagnosed).
+2.  **Evidence Sufficiency:** Mandatory artifacts must exist. (You cannot bill for surgery without an anesthesia record).
+3.  **Threshold Logic:** Numerical safety limits. (Oxygen must be administered if saturation is below a specific MoH % limit).
+4.  **Contraindication:** Mutually exclusive treatments.
+5.  **Exclusivity:** Conflicting event detection.
+6.  **Data Integrity:** Duplicate event detection.
+7.  **Conditional Existence:** Assertion-to-Proof coupling.
+8.  **Protocol Validity:** Temporal metadata checks.
+9.  **Count Sanity:** Outlier and fraud detection.
+10. **Monotonic Ordering:** Timeline stability and anti-tampering.
+
+---
+
+## The Protocol Vault (Immune Knowledge Base)
+
+Nexus Forensic is powered by a high-volume, cloud-hosted repository of medical authority. We have versioned and vectorized an exhaustive corpus to ensure the system is "Constitutional":
+
+* **Kenyan National Guidelines:** MoH Clinical Manuals, MCH Handbooks, and NASCOP HIV treatment protocols (2022/2024 editions).
+* **Quality Standards:** Full ingestion of the Kenya Quality Model for Health (KQMH) for Levels 1 through 6.
+* **Global Authority:** Integrated WHO essential medicine lists and ECS (Emergency Care Systems) frameworks.
+* **Infrastructure Law:** Deterministic building and safety codes for facility licensing.
+
+Every rule in the vault is **immutable and versioned**. When a protocol is updated by the Ministry, the system "time-travels" to ensure old claims are audited against the rules that were active at the time of care, not the rules of today.
 
 ---
 
@@ -54,20 +84,9 @@ Nexus Forensic organizes compliance evaluation as **five independent layers**, e
 | **0** | Immutable Knowledge Base | Normalized protocols as executable rules |
 | **1** | Context-Aware Retrieval | Hybrid semantic + keyword search |
 | **2** | Deterministic Logic Gates | Compliance via code only (no ML) |
-| **3** | Agentic Workflows | Audit/research/IoT orchestration |
+| **3** | Agentic Workflows | Audit/Research/IoT orchestration |
 | **4** | Narrative Rendering | Base MedGemma Clinical Narrator |
 
-## Base Concept
-
-The system is organized in five layers:
-
-| Layer | Component | Purpose |
-|-------|-----------|---------|
-| 0 | Knowledge Base | Store protocols as ForensicRule objects with embeddings |
-| 1 | Retrieval (RAG) | Hybrid search: semantic + keyword matching |
-| 2 | Logic Gates | Deterministic rule evaluation (no ML decisions) |
-| 3 | Workflows | Audit, research, and IoT modes |
-| 4 | Reporting | Generate audit reports and summaries |
 
 ## Key Components
 
@@ -114,7 +133,7 @@ While Base MedGemma is optimized for clinical dialogue, we utilize a  **Fine-Tun
 - **Approach**: Parameter-efficient LoRA (Low-Rank Adaptation)
 - **Preservation**: Base model weights frozen; only lightweight adapter trained
 - **Inference**: Adapter loaded at runtime alongside base—no base weight modification
-- **Edge Deployment**: Full model converted to GGUF format for offline inference (no cloud calls required)
+- **Edge Deployment**: Full fine-tuned model converted to GGUF format for offline inference (no cloud calls required)
 
 ---
 
@@ -139,6 +158,14 @@ Rather than conversational chat, Nexus Forensic implements a **forensic auditing
 | `STATE_CLEARED` | Verdict == VALID | Certified audit report + MedGemma summary |
 | `STATE_HALTED` | Verdict == INVALID | Forensic violation notice + gate traces |
 | `STATE_INSUFFICIENT` | Evidence gaps detected | Explicit refusal + missing evidence list |
+
+## Closed-Loop Communication (Twilio WhatsApp)
+
+The Agentic Workflow is finalized by a real-time notification layer. The system moves from a "Dashboard" to a "Forensic Terminal" by pushing critical state changes directly to auditors:
+
+* **Certified Audit Reports:** Upon reaching `STATE_CLEARED`, a digital certificate and MedGemma-rendered summary are dispatched via WhatsApp.
+* **Violation Alerts:** If the Logic Gates reach `STATE_HALTED`, the specific rule code (e.g., KQMH-7.5) and the reason for failure are sent immediately.
+* **IoT Critical Failures:** If a facility sensor (Oxygen/Power) drops below legal safety limits, a high-priority alert is triggered, allowing for regional intervention before patient harm occurs.
 
 ### Why This is Critical
 
@@ -167,6 +194,9 @@ Rather than conversational chat, Nexus Forensic implements a **forensic auditing
   - **HAI-DEF medlm-embeddings-v1**: Used as a callable tool for high-fidelity clinical RAG.
   - **Nexus-Forensic-4B**: Fine-tuned structural compiler.
   - **MedGemma 4B IT**: Base clinical narrator.
+- **Communication**: Twilio WhatsApp Business API (Real-time Forensic Alerts)
+- **Infrastructure**: GCP Cloud SQL for PostgreSQL (Multi-regional high availability)
+- **Edge Deployment**: GGUF Quantized models for offline facility use
 
 ## Frontend-Backend Integration
 
