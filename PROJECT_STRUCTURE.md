@@ -92,12 +92,7 @@ nexus-forensic/
 │   ├── llm_interface/                 # Language Model Integration (Layer 4)
 │   │   ├── __init__.py
 │   │   ├── apps.py
-│   │   ├── medgemma_renderer.py       # Base MedGemma narrative generation
-│   │   │                              # - Local inference (llama-cpp-python GGUF)
-│   │   │                              # - Cloud inference (Vertex AI endpoint)
-│   │   │                              # - OFFLINE_EDGE toggle for local/cloud switch
-│   │   │                              # - Post-verdict rendering only (sandboxed)
-│   │   └── __pycache__/
+│   │   ├── medgemma_renderer.py       # Base MedGemma narrative 
 │   │
 │   ├── users/                         # Authentication & User Management
 │   │   ├── __init__.py
@@ -111,9 +106,6 @@ nexus-forensic/
 │   │   ├── utils.py                   # Password, encryption utilities
 │   │   ├── tests.py                   # Unit tests
 │   │   │
-│   │   ├── management/
-│   │   │   └── commands/
-│   │   │       └── fetch_drone_data.py # IoT data ingestion helper
 │   │   │
 │   │   ├── migrations/                # Django migration history
 │   │   └── __pycache__/
