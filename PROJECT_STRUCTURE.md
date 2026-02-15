@@ -5,7 +5,7 @@
 ```
 medgate-forensic/
 ├── README.md                          # Main project documentation
-├── PROJECT_STRUCTURE.md               # This file
+├── PROJECT_STRUCTURE.md               # Project Structure
 ├── manage.py                          # Django CLI entry point
 ├── requirements.txt                   # Python dependencies
 ├── Dockerfile                         # Container build specification
