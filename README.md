@@ -1,18 +1,63 @@
 ﻿# Nexus Forensic
 
-Forensic AI platform for validating clinical and operational claims against medical protocols.
+**Deterministic Compliance Engine for Medical Claims using MedGemma and Google HAI-DEF**
 
-## Overview
+> A forensic medical audit system that validates clinical, facility, and operational claims against authoritative health protocols. Unlike LLM-centric systems, Nexus Forensic enforces deterministic logic gates to eliminate hallucinations in compliance adjudication. Designed for the Google MedGemma Impact Challenge.
 
-Nexus Forensic is a Django-based system that validates clinical, facility, and operational claims against medical protocols and standards. The platform separates evidence interpretation from adjudication logic:
+---
 
-- **Protocols**: Immutable medical standards stored as structured rules
-- **Evidence**: Patient records, sensor telemetry, and administrative logs  
-- **Judgment**: Deterministic Python logic gates for PASS/FAIL verdicts
+## Problem Statement
 
-Google's Health AI Developer Foundations (HAI-DEF) are used for document parsing and semantic retrieval, while Python logic gates control all final adjudication.
+Medical language models fail not primarily through hallucination, but through **verification failure**:
 
-## Architecture
+- Language models cannot enforce temporal ordering of events
+- They cannot guarantee evidence completeness  
+- They cannot deterministically refuse verdicts when proof is missing
+- They lack auditability in regulated healthcare environments
+- They cannot bridge the gap between probabilistic prose and deterministic adjudication.
+
+This creates systemic risk in clinical audit trails, insurance documentation, and post-hoc medical investigations.
+
+**Nexus Forensic solves this by separating evidence interpretation (where LLMs help) from adjudication logic (where only deterministic code decides).**
+
+---
+
+## Deployment & Artifacts
+
+| Component | Platform | Environment / Link |
+|-----------|----------|-------------------|
+| **Frontend** | Vercel | [Live Dashboard](https://nexus-forensic.vercel.app) |
+| **Backend API** | GCP Cloud Run | `https://nexus-forensic-571147915643.us-central1.run.app` |
+| **Database** | Cloud SQL | PostgreSQL 15 + pgvector (GCP Managed) |
+| **Fine-Tuning Workspace** | Kaggle | [MedGemma Forensic Trainer](https://www.kaggle.com/code/zicohubb/medgemma-impact-challenge-finetuning) |
+| **Structural Compiler** | Hugging Face | [Nexus-Forensic-MedGemma-4B](https://huggingface.co/zico-hubb/nexus-forensic-medgemma-4b) |
+| **Edge Artifact (GGUF)** | Hugging Face | [Nexus-Forensic-4B-GGUF](https://huggingface.co/zico-hubb/nexus-forensic-medgemma-4b-gguf) |
+
+## What Nexus Forensic Does
+
+| Function | Approach |
+|----------|----------|
+| Diagnose |  No—this is for compliance, not care |
+| Recommend treatment |  No—this is forensic, not clinical |
+| Validate compliance |  Yes—deterministic logic gates |
+| Audit narratives |  Yes—enforces temporal consistency |
+| Render findings | Render findings |  Yes—Base MedGemma (Clinical Narrator) |
+
+---
+
+## Core Architecture — Layered Model
+
+Nexus Forensic organizes compliance evaluation as **five independent layers**, enabling new capabilities without changing core logic.
+
+| Layer | Component | Purpose |
+|-------|-----------|---------|
+| **0** | Immutable Knowledge Base | Normalized protocols as executable rules |
+| **1** | Context-Aware Retrieval | Hybrid semantic + keyword search |
+| **2** | Deterministic Logic Gates | Compliance via code only (no ML) |
+| **3** | Agentic Workflows | Audit/research/IoT orchestration |
+| **4** | Narrative Rendering | Base MedGemma Clinical Narrator |
+
+## Base Concept
 
 The system is organized in five layers:
 
@@ -28,32 +73,139 @@ The system is organized in five layers:
 
 ### Clinical Embeddings (medlm-embeddings-v1)
 
-- **Location**: pps/forensic_rag/utils.py
+- **Location**: apps/forensic_rag/utils.py
 - **Function**: Vector representation of clinical text using Google's medical embedding model
-- **Features**: Exponential backoff, fallback to zero-vectors on quota exhaustion
+- **Features**: Exponential backoff, fallback to zero-vectors on quota exhaustion. medlm-embeddings-v1 is a specialized HAI-DEF Callable Tool utilized for clinical semantic fidelity where general models fail.
 
-### Document Parser (MedGemma)
+## Neurosymbolic Innovation
 
-- **Location**: pps/forensic_corpus/ingestion/llm_normalizer.py
-- **Function**: Parse unstructured medical text into structured logic rules
-- **Output**: JSON with deterministic rule types (temporal, threshold, contraindication, etc.)
-- **Validation**: Strict schema enforcement; malformed outputs rejected
+Nexus Forensic debuts the concept of a **Neurosymbolic Structural Compiler**. Unlike standard LLM implementations that output conversational text, our fine-tuned MedGemma model acts as a compiler that synthesizes human-readable medical law into a machine-executable Knowledge Graph.
 
-### Report Generator (MedGemma)
+### 1. Structural Compiler (Fine-Tuned MedGemma)
+- **Role**: Program Synthesis.
+- **Function**: Transforms unstructured MoH protocols into atomic `ForensicRule` nodes and causal edges.
+- **Graph Topology**: Identifies entities (e.g., "Fibrinolytic Therapy") and directed constraints (e.g., "If [Chest Pain] AND [ECG == ST-Elevation] -> MUST [Administer within 30m]").
+- **Output**: Validated JSON logic schemas for the Python Domain Gate Layer.
+- **Proof of Concept**: `data/knmp2024_knowledge_graph.json` (National Malaria Policy 2024).
 
-- **Location**: pps/llm_interface/medgemma_renderer.py
-- **Function**: Convert audit verdicts into human-readable reports
-- **Modes**: Local (GGUF via llama-cpp-python) or cloud (Vertex AI endpoint)
+### 2. Clinical Narrator (Base MedGemma)
+- **Role**: Natural Language Rendering.
+- **Function**: Translates the "Judgment Trace" (the mathematical path taken through the Knowledge Graph) back into professional human prose.
+- **Constraint**: The Narrator is strictly forbidden from determining PASS/FAIL; it only describes the deterministic outcome generated by the Logic Gates.
+
+---
+
+
+### Why Fine-Tuning Matters
+
+While Base MedGemma is optimized for clinical dialogue, we utilize a  **Fine-Tuned adapter to function as a  **high-precision Structural Compiler for forensic logic extraction and forensic audit specificity**:
+
+#### Use Case: Knowledge Graph Generation & Protocol Compilation (Structural Compiler)
+
+- **Problem**: To achieve zero-hallucination compliance, the Structural Compiler is trained to perform deterministic mapping of clinical prose to codified logic schemas.
+- **Solution**: Fine-tune MedGemma to convert unstructured text → deterministic JSON
+- **Training Data**: Medical protocols + target rule JSON schemas
+- **Validation Gate**: Automatically reject outputs that violate schema
+
+
+### Fine-Tuning Methodology
+
+- **Base Model**: MedGemma 4B instruction-tuned (`medgemma-1.5-4b-it`)
+- **Approach**: Parameter-efficient LoRA (Low-Rank Adaptation)
+- **Preservation**: Base model weights frozen; only lightweight adapter trained
+- **Inference**: Adapter loaded at runtime alongside base—no base weight modification
+- **Edge Deployment**: Full model converted to GGUF format for offline inference (no cloud calls required)
+
+---
+
+## Agentic Workflow Innovation 
+
+### A Deterministic Auditing Agent
+
+Rather than conversational chat, Nexus Forensic implements a **forensic auditing agent** that:
+
+1. **Injects audit scope** (specialty, time window, evidence categories, protocol families)
+2. **Traverses the Knowledge Graph** via constrained RAG (Layer 1). Rather than a standard text search, the agent uses the Neurosymbolic Compiler outputs to identify the path of compliance through the governing protocols.
+3. **Executes forensic gates** on all evidence (Layer 2 deterministic logic)
+4. **Invokes the Clinical Narrator (Base MedGemma) to translate deterministic logic traces into human-readable forensic reports.** or explicit refusal (Layer 4 MedGemma rendering)
+5. **Communicates state changes** via closed-loop notifications (Twilio WhatsApp / Email)
+
+**Agentic ochestration**: The agent composes rule-based and neural components to achieve audit completion while maintaining full transparency and auditability.
+
+### Workflow States & Communication
+
+| State | Trigger | Output |
+|-------|---------|--------|
+| `STATE_CLEARED` | Verdict == VALID | Certified audit report + MedGemma summary |
+| `STATE_HALTED` | Verdict == INVALID | Forensic violation notice + gate traces |
+| `STATE_INSUFFICIENT` | Evidence gaps detected | Explicit refusal + missing evidence list |
+
+### Why This is Critical
+
+- Reimagines complex medical audit workflows using HAI-DEF models as **callable, constrained tools** (not autonomous reasoners)
+- Every audit step is logged and auditable
+- Human operators see real-time state transitions and reasoning
+- Agent failure modes are explicit, not hidden in probabilistic outputs
+
+---
 
 ## Technology Stack
 
 - **Language**: Python 3.11
 - **Framework**: Django 5.x + Django REST Framework
 - **Database**: PostgreSQL 15 + pgvector extension
-- **Tasks**: Celery + Redis
-- **Document parsing**: Docling + PyPdfium
+- **Tasks**: Celery + Redis  
+- **Document parsing**: Docling + PyPdfium (with offline caching in Docker)
 - **Cloud AI**: Google Vertex AI (MedGemma, MedLM embeddings)
-- **Local inference**: llama-cpp-python (GGUF models)
+- **Local inference**: `llama-cpp-python` (Medgemma GGUF models for edge deployments)
+- **Cloud Infrastructure**: Google Cloud Platform (GCP)
+  - **Compute**: Cloud Run (Containerized Backend)
+  - **Database**: Cloud SQL for PostgreSQL (pgvector enabled)
+  - **AI Ecosystem**: Vertex AI Endpoint Management
+- **Frontend**: Next.js 14 + Vercel Deployment
+- **AI Models**: 
+  - **HAI-DEF medlm-embeddings-v1**: Used as a callable tool for high-fidelity clinical RAG.
+  - **Nexus-Forensic-4B**: Fine-tuned structural compiler.
+  - **MedGemma 4B IT**: Base clinical narrator.
+
+## Frontend-Backend Integration
+
+The frontend (Next.js 14) communicates with the Nexus Forensic backend via a standardized JSON API.
+
+### Endpoint: `POST /forensic/reasoning/`
+The primary entry point for all forensic operations.
+
+**Request Payload (`ForensicPayload`):**
+```typescript
+{
+  "case_id": "string",
+  "query": "string",
+  "mode": "audit" | "research" | "iot_stream",
+  "scope": "clinical" | "facility" | "billing" | "legal",
+  "claim_data": {
+    "events": [
+      {
+        "name": "string",
+        "timestamp": "ISO-8601",
+        "value": "number | string",
+        "unit": "string",
+        "type": "string"
+      }
+    ]
+  }
+}
+```
+
+```
+Expected Response (ForensicResponse):
+The backend returns a comprehensive audit artifact, including the narrative explanation, deterministic evidence, and the agent's internal "thought trace."
+
+```audit_result:``` Human-readable certification statements and compliance matrices.
+
+```forensic_evidence:``` Immutable pass/fail rules and specific violation traces retrieved from the Knowledge Graph.
+
+```agent_trace:``` A step-by-step execution log (INIT -> PLANNING -> RETRIEVAL -> REASONING -> RENDERING) for 1:1 auditability.
+```
 
 ## Installation
 
@@ -66,7 +218,7 @@ The system is organized in five layers:
 
 ### Local Setup
 
-`bash
+```bash
 git clone <repo-url>
 cd nexus-forensic
 python -m venv .venv
@@ -74,13 +226,13 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver
-`
+```
 
 ### Docker Setup (Recommended)
 
-`bash
+```bash
 docker-compose up --build
-`
+```
 
 The Docker image includes:
 - CPU PyTorch wheel pre-installed
@@ -112,25 +264,25 @@ Set OFFLINE_EDGE=True (default) to use local GGUF models. Set to False for cloud
 
 ### Ingest a Protocol
 
-`bash
+```bash
 python manage.py ingest_documents \
   --file data/moh_handbook.pdf \
   --title "MOH Handbook" \
   --specialty pediatrics \
   --valid_from 2024-01-01
-`
+```
 
 ### Generate Embeddings
 
-`bash
+```bash
 python manage.py generate_embeddings
-`
+```
 
 ### Start Background Worker
 
-`bash
+```bash
 celery -A medgate worker -l info
-`
+```
 
 ### Other Commands
 
@@ -139,6 +291,18 @@ celery -A medgate worker -l info
 - python manage.py stitch_kqmh_versions - Merge rule versions
 
 ## Technical Details
+
+### Knowledge Graph Topology
+
+The system treats medical guidelines as a directed graph. The Structural Compiler ensures that:
+
+- Nodes: Represent atomic clinical requirements (e.g., "Conduct ECG").
+
+- Edges: Represent temporal constraints or causal triggers (e.g., "within 10 minutes of chest pain").
+
+- Adjudication: Compliance is determined by validating if the patient's evidence path satisfies the constraints defined in the Knowledge Graph.
+
+### Embedding Fallback
 
 ### Hybrid Retrieval Formula
 
