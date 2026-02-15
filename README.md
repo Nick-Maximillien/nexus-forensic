@@ -244,7 +244,7 @@ The primary entry point for all forensic operations.
 **Expected Response (`ForensicResponse`):**
 - The backend returns a comprehensive audit artifact, including the narrative explanation, deterministic evidence, and the agent's internal "thought trace."
 
-````audit_result:``` Human-readable certification statements and compliance matrices.
+```audit_result:``` Human-readable certification statements and compliance matrices.
 
 ```forensic_evidence:``` Immutable pass/fail rules and specific violation traces retrieved from the Knowledge Graph.
 
