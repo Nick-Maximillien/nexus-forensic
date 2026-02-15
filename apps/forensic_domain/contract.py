@@ -26,7 +26,7 @@ class ForensicAuditPlan:
 class ForensicVerdict:
     """
     Wire 3: The Gatekeeper. 
-    If this is False, MedGemma is NEVER called.
+    If this is False, Audit is halted.
     """
     is_valid: bool
     passed_rules: List[ForensicRule] = field(default_factory=list)

@@ -9,9 +9,9 @@ import torch
 
 print("Initializing Forensic Training Environment (MedGemma Trainer)...")
 
-# =========================================================
+# ========================
 # 0. DEPENDENCY MANAGEMENT
-# =========================================================
+# ========================
 print("-> Installing packages...")
 
 # Updated dependencies for MedGemma compatibility
@@ -55,9 +55,9 @@ except ImportError:
 
 print("Environment ready.")
 
-# =========================================================
+# ===========================
 # HUGGING FACE AUTHENTICATION
-# =========================================================
+# ===========================
 print("Authenticating with Hugging Face...")
 from huggingface_hub import login
 from kaggle_secrets import UserSecretsClient
@@ -67,9 +67,9 @@ hf_token = user_secrets.get_secret("HF_TOKEN")
 login(token=hf_token)
 print("Authentication successful.")
 
-# =========================================================
+# =========================
 # 1. LOAD MODEL & TOKENIZER
-# =========================================================
+# =========================
 
 # UPDATED: Target MedGemma 1.5 4B Instruction Tuned
 MODEL_ID = "google/medgemma-1.5-4b-it"
@@ -146,9 +146,9 @@ model = get_peft_model(model, peft_config)
 print("Model loaded and adapted.")
 model.print_trainable_parameters()
 
-# =========================================================
+# ==========
 # 2. DATASET
-# =========================================================
+# ==========
 print("\nLoading dataset...")
 
 dataset_path = "medgate_finetune_FINAL.jsonl"
@@ -182,7 +182,7 @@ print(f"Loaded {len(raw_data)} records.")
 
 # NOTE: MedGemma generally follows standard instruction formats, but if performance is low, 
 # consider switching to the specific Gemma Chat Template in future iterations. 
-# Keeping Alpaca for now as requested to maintain logic flow.
+# Keeping Alpaca  to maintain logic flow.
 alpaca_prompt = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
 ### Instruction:
@@ -194,9 +194,9 @@ alpaca_prompt = """Below is an instruction that describes a task, paired with an
 ### Response:
 {}"""
 
-# =========================================================
+# ===============
 # 3. TOKENIZATION
-# =========================================================
+# ===============
 print("Tokenizing...")
 
 max_seq_length = 512
@@ -238,14 +238,14 @@ tokenized_dataset = hf_dataset.map(
 print(f"-> Columns: {tokenized_dataset.column_names}")
 print(f"-> Sample length: {len(tokenized_dataset[0]['input_ids'])} tokens")
 
-# =========================================================
+# ================
 # 4. DATA COLLATOR
-# =========================================================
+# ================
 data_collator = default_data_collator
 
-# =========================================================
+# ===========
 # 5. TRAINING
-# =========================================================
+# ===========
 print("\nStarting training...")
 
 training_args = TrainingArguments(
@@ -281,9 +281,9 @@ trainer.train()
 
 print("Training complete.")
 
-# =========================================================
+# ========================
 # 6. VERIFICATION & EXPORT
-# =========================================================
+# ========================
 print("\nVerification test...")
 
 model.eval()

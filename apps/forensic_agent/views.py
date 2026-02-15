@@ -10,51 +10,62 @@ from apps.forensic_agent.workflow import ForensicAuditorAgent
 from apps.forensic_agent.research import ForensicResearchAgent 
 from apps.forensic_agent.extraction import ClinicalExtractor
 from apps.forensic_agent.models import AuditTask
-from apps.forensic_agent.iot_agent import ForensicIoTAgent # <--- Now correctly used
+from apps.forensic_agent.iot_agent import ForensicIoTAgent 
 
 logger = logging.getLogger(__name__)
 
 class ForensicReasoningView(APIView):
     """
-    API Trigger for the Forensic Auditor Agent.
-    Handles both Direct JSON claims and PDF Document uploads.
-    Supports modes: 'audit' (default) and 'research'.
+    Primary orchestration entry point for the Nexus Forensic system.
+    This view dispatches incoming clinical data or sensor streams to the 
+    appropriate agentic pipeline based on the requested mode.
     """
     permission_classes = [AllowAny]
     parser_classes = [MultiPartParser, JSONParser]
 
     def post(self, request):
-        #  Initialize claim_data with an empty events list to prevent Extraction Void bottleneck
+        """
+        Processes forensic requests. Supports PDF document ingestion for 
+        asynchronous extraction and direct JSON payloads for real-time adjudication.
+        """
+        # Initialize evidence container with an empty events list to ensure 
+        # downstream logic gates do not fail on missing keys.
         claim_data = {"events": []}
 
-        # [BRANCH A] Handle PDF Upload
+        # [BRANCH A] Handle PDF Document Ingestion
+        # This branch handles unstructured clinical evidence by routing it 
+        # through the MedGemma-powered extraction pipeline.
         if 'file' in request.FILES:
             uploaded_file = request.FILES['file']
             
+            # Persist uploaded bytes to a temporary filesystem location for OCR processing.
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                 for chunk in uploaded_file.chunks():
                     tmp.write(chunk)
                 tmp_path = tmp.name
             
             try:
-                # RUN THE EXTRACTOR
+                # Invoke the ClinicalExtractor to convert unstructured PDF into 
+                # a normalized Forensic JSON schema.
                 extracted_json = ClinicalExtractor.pdf_to_json(tmp_path)
                 if extracted_json and isinstance(extracted_json, dict):
                     claim_data.update(extracted_json)
                 
-                # Ensure events key exists after update
+                # Maintain data integrity by ensuring the events array exists.
                 if "events" not in claim_data:
                     claim_data["events"] = []
                     
             except Exception as e:
                 logger.error(f"Extraction Pipeline Failed: {str(e)}")
-                # Fail-safe: empty events list prevents agent crash
+                # Fail-safe: Provide empty evidence set to avoid breaking the reasoning agent.
                 claim_data = {"events": [], "error": str(e)}
             finally:
+                # Cleanup temporary file to preserve system storage.
                 if os.path.exists(tmp_path):
                     os.unlink(tmp_path)
                     
-        #  Handle Legacy JSON (Research Mode / Direct API)
+        # [BRANCH B] Handle Structured Evidence (JSON)
+        # Used for Research mode or direct integration with Electronic Health Records (EHR).
         else:
             raw_data = request.data.get("claim_data", {})
             if isinstance(raw_data, str):
@@ -68,36 +79,36 @@ class ForensicReasoningView(APIView):
             if "events" not in claim_data:
                 claim_data["events"] = []
 
-        # 1. Extract Inputs
+        # Parameter Extraction for Audit Planning
         case_id = request.data.get("case_id", "AUTO-EXTRACTED")
         query = request.data.get("query", "")
         mode = request.data.get("mode", "audit") 
-        
-        # Context parameters (Default to 'auto')
         specialty = request.data.get("specialty", "auto")
         
-        #  Extract Scope (Default to 'clinical' for patient safety)
+        # Determine the enforcement scope (clinical, facility, billing, or legal).
         scope = request.data.get("scope", "clinical")
         
-        # --- PIPELINE SWITCH ---
+        # --- PIPELINE DISPATCHER ---
 
-        # [BRANCH C] IOT PIPELINE (The missing link)
+        # [BRANCH C] IOT COMPLIANCE PIPELINE
+        # Processes telemetry streams against infrastructure and environmental rules.
         if mode == "iot_stream":
             agent = ForensicIoTAgent(case_id=case_id)
-            # This runs the logic that checks Generator/Water rules instead of HIV rules
+            # Execute logic gates specifically tailored for sensor data thresholds.
             task = agent.run_iot_check(
                 sensor_data=claim_data,
                 scope=scope 
             )
-            # Return "Dumb" receipt. The sensor doesn't need to know the verdict.
+            # Return an acknowledgment receipt. Verdicts are reviewed via the dashboard.
             return Response({
                 "task_id": task.id,
                 "status": "RECEIVED",
                 "verdict": "PENDING_AUDIT" 
             })
 
+        # [BRANCH D] CLINICAL RESEARCH PIPELINE
+        # Discovery-based mode for exploring the protocol corpus without patient adjudication.
         if mode == "research":
-            # [BRANCH D] Research Pipeline (No Audit/Gating)
             research_agent = ForensicResearchAgent(case_id=case_id)
             result = research_agent.run_research(
                 query_text=query,
@@ -106,24 +117,25 @@ class ForensicReasoningView(APIView):
             )
             return Response(result)
 
-        # [BRANCH E] AUDIT PIPELINE (Original)
+        # [BRANCH E] FORENSIC AUDIT PIPELINE
+        # The primary deterministic adjudication workflow for clinical compliance.
         patient_age = request.data.get("patient_age")
         event_timestamp = request.data.get("event_timestamp")
 
-        # 2. Instantiate the Auditor Agent 
+        # Instantiate the Auditor Agent to govern the reasoning lifecycle.
         agent = ForensicAuditorAgent(case_id=case_id)
         
-        # 3. Execute Workflow with SCOPE
+        # Execute the multi-layered audit (Planning -> Retrieval -> Gating -> Rendering).
         task = agent.run_audit(
             claim_data=claim_data,
             query_text=query,
             specialty=specialty,
             patient_age=patient_age,
             event_timestamp=event_timestamp,
-            scope=scope # Passing the scope constraint
+            scope=scope 
         )
 
-        # 4. Response
+        # Final Response Serialization
         return Response({
             "task_id": task.id,
             "case_id": task.case_id,
@@ -137,17 +149,20 @@ class ForensicReasoningView(APIView):
     
 class AuditTaskListView(APIView):
     """
-    Feeds the Remote Auditor Dashboard.
-    Returns the 20 most recent audits (IoT streams + Documents).
+    Management view for the Remote Forensic Auditor Dashboard.
+    Provides a chronological audit trail of all processed events and documents.
     """
     permission_classes = [AllowAny]
 
     def get(self, request):
+        """
+        Retrieves a summary of the most recent audit tasks for system-wide monitoring.
+        """
         tasks = AuditTask.objects.all().order_by('-started_at')[:20]
         data = []
         
         for t in tasks:
-            # Construct response matching ForensicResponse interface where possible
+            # Reconstruct the audit state for frontend visualization.
             data.append({
                 "id": str(t.id),
                 "task_id": str(t.id),

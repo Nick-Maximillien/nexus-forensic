@@ -1,6 +1,6 @@
-# =========================================================
-# STEP 7: EDGE CONVERSION (MEDGEMMA 4B -> GGUF)
-# =========================================================
+# ======================================
+# EDGE CONVERSION (MEDGEMMA 4B -> GGUF)
+# =====================================
 import torch
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -32,7 +32,7 @@ if not found_files:
 
 # We take the directory of the first valid config found
 adapter_path = os.path.dirname(found_files[0])
-print(f"✅ FOUND ADAPTER AT: {adapter_path}")
+print(f" FOUND ADAPTER AT: {adapter_path}")
 
 base_model_id = "google/medgemma-1.5-4b-it"
 temp_merged_path = "medgemma_merged_16bit"

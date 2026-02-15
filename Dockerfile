@@ -25,7 +25,7 @@ RUN pip install torch torchvision torchaudio --index-url https://download.pytorc
 COPY requirements.txt .
 RUN pip install --default-timeout=1000 --no-cache-dir -r requirements.txt
 
-# --- THE FIX: SURGICAL BAKE STEP ---
+# --- BAKE STEP ---
 # We initialize the converter with the EXACT same options as parser.py
 # and run a dummy conversion to force-download layout, table, and cell-matching models.
 RUN python3 -c "from docling.document_converter import DocumentConverter, PdfFormatOption; \

@@ -12,7 +12,7 @@ class ForensicRAG:
     """
     Wire 2: The Multi-Head Constrained Retriever.
     Fetches the 'Law' (Protocol) that applies to the 'Crime' (Claim).
-    Upgraded: Scope-Aware partitioning (IoT vs Clinical).
+    Upgraded: Scope-Aware partitioning (Facility vs Clinical).
     """
 
     @staticmethod
@@ -44,15 +44,15 @@ class ForensicRAG:
             protocol__in=active_protocols
         ).select_related('protocol', 'embedding')
 
-        # [INTACT] Deterministic Facility Level Filter
+        # Deterministic Facility Level Filter
         if plan.facility_level:
             base_qs = base_qs.filter(applicable_facility_levels__contains=[plan.facility_level])
 
-        # [INTACT] DETERMINISTIC SCOPE FILTER
+        # DETERMINISTIC SCOPE FILTER
         if plan.audit_scope:
             base_qs = base_qs.filter(scope_tags__contains=[plan.audit_scope])
 
-        # [INTACT] DEMOGRAPHIC FILTER (Prevent Pediatric/Adult Mismatch)
+        # DEMOGRAPHIC FILTER (Prevent Pediatric/Adult Mismatch)
         effective_age = plan.patient_age
         if effective_age is None and query_text:
             yr_match = re.search(r'(\d+)\s*[-]?\s*y(?:ea)?rs?\s*old', query_text, re.IGNORECASE)
@@ -68,10 +68,10 @@ class ForensicRAG:
             else:
                 base_qs = base_qs.exclude(scope_tags__contains=['adult'])
 
-        # 3. [FIXED] SCOPE-CONDITIONAL MULTI-HEAD RETRIEVAL
-        # Multi-Head split is now ONLY enforced for Clinical Audits.
+        # 3. SCOPE-CONDITIONAL MULTI-HEAD RETRIEVAL
+        # Multi-Head split is ONLY enforced for Clinical Audits.
         if plan.audit_scope == 'clinical':
-            # HEAD A: The Clinical Truth (NASCOP, Handbooks, Clinical Protocols)
+            # HEAD A: The Clinical Truth (NASCOP, Handbooks, Clinical Protocols etc)
             clinical_filters = Q(protocol__issuing_body__icontains="NASCOP") | \
                               Q(protocol__title__icontains="Handbook") | \
                               Q(protocol__title__icontains="Guidelines")
@@ -83,7 +83,7 @@ class ForensicRAG:
                           Q(protocol__title__icontains="Core Standards")
             cert_qs = base_qs.filter(cert_filters)
 
-            # Helper to apply your Hybrid Scoring Engine to a specific head
+            # Helper to apply Hybrid Scoring Engine to a specific head
             def get_scored_results(qs, limit):
                 if query_text:
                     return qs.annotate(
@@ -107,7 +107,7 @@ class ForensicRAG:
 
         else:
             # IoT / Infrastructure / Research Mode: perform targeted top_k search
-            # [CRITICAL FIX]: Hard Exclusion of any clinical/HIV identifiers for non-clinical scopes
+            # Hard Exclusion of any clinical/identifiers for non-clinical scopes
             base_qs = base_qs.exclude(
                 Q(rule_code__icontains="HIV") |
                 Q(protocol__issuing_body__icontains="NASCOP") | 

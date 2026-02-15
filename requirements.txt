@@ -12,7 +12,7 @@ jsonschema>=4.17.0
 # --- Database & URL parsing ---
 dj-database-url>=2.3.0
 psycopg2-binary>=2.9.9
-pgvector>=0.3.0             # NEW: Required for VectorField and L2Distance search
+pgvector>=0.3.0             
 
 # --- REST framework & JWT auth ---
 djangorestframework>=3.15.2
@@ -28,7 +28,8 @@ numpy>=1.24.0
 django-cors-headers>=4.3.1
 
 # --- AI & LLM (Google Vertex) ---
-google-cloud-aiplatform>=1.70.0  # NEW: Required for import vertexai
+google-cloud-aiplatform>=1.70.0  
+
 
 # --- Cloudinary storage ---
 cloudinary>=1.40.0

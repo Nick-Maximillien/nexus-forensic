@@ -1,15 +1,32 @@
+import logging
 from datetime import datetime
 from apps.forensic_corpus.models import ForensicRule
 from apps.forensic_domain.contract import ForensicVerdict
 
+logger = logging.getLogger(__name__)
+
 class ForensicGateLayer:
     """
-    Enforces deterministic forensic rules. 
-    This is the code that 'Audits medical narratives'
-    Now upgraded to perform Semantic State Adjudication for IoT Telemetry.
+    FORENSIC GATE LAYER (CORE ADJUDICATION ENGINE)
+    
+    This class implements the deterministic reasoning engine for the MedGate 
+    Forensic ecosystem. It serves as the symbolic component of a 
+    Neuro-Symbolic architecture, where 'Understanding' is handled by 
+    fine-tuned MedGemma models, and 'Judgment' is handled by these 
+    mathematically verifiable logic gates.
+    
+    CAPABILITIES:
+    1. Temporal Adjudication: Verifies the chronological sequence of events.
+    2. Threshold Adjudication: Validates vital signs and lab results.
+    3. Sufficiency Adjudication: Ensures presence of mandatory artifacts.
+    4. State Adjudication: Real-time evaluation of IoT sensor streams.
     """
 
-    # Morphology Engine: Ignore these administrative fluff words to find the Medical Truth.
+    # --------------------------------------------------
+    # MORPHOLOGY ENGINE: ADMINISTRATIVE NOISE REDUCTION
+    # --------------------------------------------------
+    # These terms are filtered during semantic matching to prioritize 
+    # clinical intent over administrative documentation style.
     STOPWORDS = {
         "assessment", "evaluation", "monitoring", "calculation", "verification", "check", 
         "test", "screening", "analysis", "audit", "log", "record", "report",
@@ -18,51 +35,60 @@ class ForensicGateLayer:
 
     @staticmethod
     def _parse_time(iso_str):
+        """
+        Standardizes timestamp formats across heterogeneous data sources 
+        (PDF extractions vs IoT sensor packets).
+        """
         if not iso_str: return None
         try:
             return datetime.fromisoformat(iso_str.replace('Z', '+00:00'))
         except ValueError:
             return None
 
-    # ---------------------------------------------------------
-    #  UNIT CONVERSION HELPER (Graceful Failures)
-    # ---------------------------------------------------------
+    # ----------------------------------------------
+    # UNIT CONVERSION HELPER: FORENSIC NORMALIZATION
+    # ----------------------------------------------
     @staticmethod
     def _convert_to_base(value: float, unit: str) -> float:
         """
-        Normalizes forensic measurements to base units (grams, liters, seconds).
-        Prevents 'False Positives' due to unit mismatch (e.g., ng vs pg).
+        Normalizes forensic measurements to base units (grams, liters).
+        This is a critical safety component that prevents 'False Negatives' 
+        arising from unit mismatches in unstructured clinical notes.
         """
         if not unit: return value
         unit = unit.lower().strip()
         
-        # Mass (Base: grams)
+        # Mass Normalization (Base: grams)
         if unit == 'mg': return value * 1e-3
         if unit == 'mcg' or unit == 'ug': return value * 1e-6
         if unit == 'ng': return value * 1e-9
         if unit == 'pg': return value * 1e-12
         
-        # Volume (Base: liters)
+        # Volume Normalization (Base: liters)
         if unit == 'ml': return value * 1e-3
         if unit == 'dl': return value * 1e-1
         
-        # If unknown, assume base or ratio match
         return value
 
-    # ---------------------------------------------------------
-    #  A. TEMPORAL CONSISTENCY 
-    # ---------------------------------------------------------
+    # ----------------------------
+    # GATE 1: TEMPORAL CONSISTENCY
+    # ----------------------------
     @staticmethod
     def validate_temporal_logic(events: list, rule: ForensicRule):
+        """
+        Enforces causal timelines (e.g., Treatment B must follow Diagnosis A).
+        Detects 'Time Travel' violations and 'Delay Breaches' against 
+        national clinical standards.
+        """
         config = rule.logic_config
         anchor_type = str(config.get('anchor', '')).lower()
         target_type = str(config.get('target', '')).lower()
 
-        # [FIX]: Robust matching across name and type fields (Case-Insensitive)
+        # Robust cross-field matching (Case-Insensitive)
         anchor_event = next((e for e in events if str(e.get('type','')).lower() == anchor_type or str(e.get('name','')).lower() == anchor_type), None)
         target_event = next((e for e in events if str(e.get('type','')).lower() == target_type or str(e.get('name','')).lower() == target_type), None)
 
-        # [FIX]: Requirement Gap - If the anchor exists, the target MUST exist
+        # Requirement Gap: Anchor exists but required follow-up is missing
         if anchor_event and not target_event:
             return f"Requirement Gap: Rule requires '{config.get('target')}' following '{config.get('anchor')}', but it was not found in the timeline."
 
@@ -74,11 +100,11 @@ class ForensicGateLayer:
         
         if not t1 or not t2: return None
 
-        # Check 1: Sequence
+        # Sequence Validation
         if t2 < t1:
             return f"Time Travel: {config['target']} ({t2.time()}) occurred before {config['anchor']} ({t1.time()})"
 
-        # Check 2: Max Delay
+        # Latency Validation
         if 'max_delay_minutes' in config:
             delta_mins = (t2 - t1).total_seconds() / 60
             if delta_mins > config['max_delay_minutes']:
@@ -86,12 +112,16 @@ class ForensicGateLayer:
 
         return None
 
-    # ---------------------------------------------------------
-    #  B. EVIDENCE SUFFICIENCY (Upgraded: Scalable Role & Scope Bridge)
-    # ---------------------------------------------------------
+    # ------------------------------------------------------
+    # GATE 2: EVIDENCE SUFFICIENCY & IoT STATE ADJUDICATION
+    # -----------------------------------------------------
     @staticmethod
     def validate_existence(events: list, rule: ForensicRule):
-        # 1. Handle Requirement (String OR List)
+        """
+        Determines if required clinical artifacts are present.
+        Performs 'Semantic State Adjudication' for IoT telemetry,
+        mapping sensor voltages and pressures to regulatory 'Adequacy'.
+        """
         raw_req = rule.logic_config.get('required_artifact', '')
         
         if isinstance(raw_req, list):
@@ -102,7 +132,6 @@ class ForensicGateLayer:
         found = False
         iot_violation = None
         
-        # [SCALABLE FIX]: Define Scope Contexts
         UNIVERSAL_QUANTIFIERS = {
             "each", "all", "every", "hospital-wide", "facility-wide", 
             "monitoring", "evaluation", "director", "role", "leadership"
@@ -113,66 +142,58 @@ class ForensicGateLayer:
             "log", "report", "leader", "personnel", "matrix"
         }
 
-        # [FIX]: Robust Context Detectors (Clinical vs IoT)
+        # Context Detectors: Differentiates between Document Audits and Live Streams
         ev_blob_all = str(events).lower()
         is_adult_patient = any(m in ev_blob_all for m in ["para", "gravida", "gestation", "pregnancy", "adult", "28-year-old", "anc visit"])
-        
-        # Enhanced detection: Check for specific sensor keywords from the simulator
         is_iot_context = any(m in ev_blob_all for m in ["online", "offline", "psi", "reservoir", "telemetry", "generator", "manifold", "grid power"])
 
-        # [FIX 1] Move Unknown Bypass OUTSIDE loop (Handles empty events list)
         for target in targets:
-            # [FIXED]: Malformed Rule Guard - If requirement is empty, it cannot be failed.
+            # Malformed Rule Guard
             if not target or target.strip() == "":
                 return None
 
+            # Bypass for sparse data sets
             if 'unknown' in target:
-                 # [FIX]: Placeholder Pass only allowed if the claim contains actual data
                 if not events: return f"Missing Artifact: '{target}' required, but clinical evidence is empty."
-                return None # PASS immediately
+                return None
 
-            # [SURGERY] FIX HIV-AA2D30 & HIV-6F9002: Ignore pediatric/infant rules in adult context
+            # Pediatric Immunity Gate: Prevents adult claims from failing child-specific growth rules
             if is_adult_patient and any(kw in target for kw in ["child", "pediatric", "infant", "hei", "growth milestone", "developmental"]):
                 return None
 
-            # [NEW SURGERY] Telemetric Immunity Gate: If context is IoT, ignore purely administrative document rules
-            # This prevents failing a power sensor because there isn't a written "Study", "Plan" or "Manual".
+            # Telemetric Immunity Gate: Prevents IoT streams from failing on written documentation requirements
             if is_iot_context and any(kw in target for kw in ["plan", "study", "studies", "documentation", "manual", "policy", "guideline", "protocol", "signage", "route", "awareness", "escalation", "program", "audit", "mechanism", "results", "burden", "status"]):
                 return None
 
-        # 2. Iterate through all extracted events
+        # Data Stream Iteration
         for e in events:
             ev_name = str(e.get('name', '')).lower()
-            # [FIX 2] Expand Search Blob (Field Myopia Fix)
             ev_blob = " ".join([str(v) for v in e.values() if v]).lower()
             ev_tokens = set(ev_blob.split())
             
-            # Adjudication variables for State evaluation
+            # State adjudication values
             raw_val = e.get('value')
             val_str = str(raw_val).upper() if raw_val is not None else ""
             try:
-                # Handle cases where value might be string "85%" or "0PSI"
                 clean_val = str(raw_val).replace('%','').replace('PSI','').replace('psi','').strip()
                 val_num = float(clean_val) if clean_val.replace('.','',1).lstrip('-').isdigit() else None
             except:
                 val_num = None
 
-            # 3. Check against Targets
             for target in targets:
                 if not target: continue
                 
-                # [NEW ADJUDICATION SURGERY]: Semantic State Logic for IoT
-                # Maps sensor values to the "Adequacy" or "Reliability" required by the law.
+                # IOT LOGIC: ADJUDICATING INFRASTRUCTURE RELIABILITY
                 if is_iot_context:
-                    # A. Power Adjudication (Logic: Reliable Power = Grid or Generator must be ONLINE)
+                    # Power State Adjudication
                     if ("power" in target or "electricity" in target) and ("grid" in ev_blob or "generator" in ev_blob):
                         if "ONLINE" in val_str:
                             found = True; break
                         else:
                             iot_violation = f"Infrastructure Failure: '{target}' is currently OFFLINE."
-                            continue # Don't set found, keep looking for a redundant backup that might be ONLINE
+                            continue 
 
-                    # B. Water Adjudication (Logic: Safe Running Water = Level must be above Safety Buffer)
+                    # Water Resource Adjudication
                     if ("water" in target or "sanitation" in target) and ("reservoir" in ev_blob or "level" in ev_blob):
                         if val_num is not None and val_num >= 20.0:
                             found = True; break
@@ -180,7 +201,7 @@ class ForensicGateLayer:
                             iot_violation = f"Resource Exhaustion: Safe Water Level is critical ({val_num}%)."
                             continue
 
-                    # C. [OXYGEN FIX]: Sufficient Oxygen = Pressure must be above Medical Minimum
+                    # Oxygen Pressure Adjudication
                     if ("oxygen" in target or "manifold" in target or "infrastructure" in target) and ("psi" in ev_blob or "manifold" in ev_blob):
                         if val_num is not None and val_num >= 500.0:
                             found = True; break
@@ -188,42 +209,39 @@ class ForensicGateLayer:
                             iot_violation = f"Critical Depletion: Oxygen Pressure is below medical safety limits ({val_num} PSI)."
                             continue
 
-                # [Standard Match Guard]: 
-                # Don't let a generic keyword match "rescue" an Oxygen failure from the PSI check above.
+                # Standard Keyword Matching Logic
                 if is_iot_context and any(kw in target for kw in ["oxygen", "water", "power", "grid", "psi"]):
                     if iot_violation and target in ev_blob:
                         continue
 
-                # Standard Exact Substring Match (for non-IoT or passed IoT state checks)
                 if target in ev_blob:
                     found = True
                     break
 
-                # [FIXED]: Forensic Synonym Mapping for HIV/PMTCT 
+                # Forensic Synonym Mapping
                 if any(kw in target for kw in ["art", "initiation", "regimen"]):
                     if any(m in ev_blob for m in ["tdf", "3tc", "dtg", "efv", "arv", "nvp", "abc", "lpv"]):
                         found = True
                         break
 
-                # [SURGERY] Counseling & Psychosocial Synonyms
+                # Counseling and Social Evidence Proxies
                 if any(kw in target for kw in ["counselling", "education", "psychosocial", "assessment"]):
                     counseling_keywords = ["eac", "adherence", "disclosure", "stigma", "discordant", "counselled"]
                     if any(m in ev_blob for m in counseling_keywords):
                         found = True
                         break
 
-                # [SURGERY] KQMH ADMIN & SUPPLY SYNONYMS: Fixes ID 9.1 and ID 5.4
+                # Administrative and Supply Chain Proxies (KQMH Compliance)
                 if any(kw in target for kw in ["data management", "records", "information system", "supplies", "drug use"]):
                     admin_proxies = ["patient file", "mch handbook", "records maintained", "file opened", "documented", "batch", "traceability", "dispensed"]
                     if any(m in ev_blob for m in admin_proxies):
                         found = True
                         break
                 
-                # B. MEDICAL ROOT LOGIC (The Stopword Fix)
+                # Semantic Root Extraction (Medical Bag-of-Words)
                 req_tokens = [t for t in target.split() if t not in ForensicGateLayer.STOPWORDS]
                 req_token_set = set(req_tokens)
                 
-                # Check Scope Dynamics (Legacy Bridge)
                 req_has_universal = any(u in target for u in UNIVERSAL_QUANTIFIERS)
                 ev_has_local = any(l in ev_blob for l in LOCAL_SCOPES)
                 
@@ -246,23 +264,26 @@ class ForensicGateLayer:
             if found: break
         
         if not found:
-            # If we explicitly caught a state violation (OFFLINE/Low Level), return that specific reason.
             if iot_violation: return iot_violation
-            # Return a readable error using the first target as the label
             display_req = targets[0] if targets else "Unknown Requirement"
             return f"Missing Artifact: '{display_req}' not found in claim evidence."
         return None
 
-    # ---------------------------------------------------------
-    #  C. THRESHOLD LOGIC (With Unit Normalization)
-    # ---------------------------------------------------------
+    # -----------------------
+    # GATE 3: THRESHOLD LOGIC
+    # -----------------------
     @staticmethod
     def validate_threshold(events: list, rule: ForensicRule):
+        """
+        Numerical Adjudication Gate.
+        Validates vital signs and lab values against protocol-defined 
+        min/max limits using unit-normalized comparison.
+        """
         target = str(rule.logic_config.get('target_vital', '')).lower()
         min_val = rule.logic_config.get('min_value')
         max_val = rule.logic_config.get('max_value')
         
-        # [FIX]: Check both name and type for vital measurements
+        # Validates both Explicit Name and Event Type
         measurement = next((e for e in events if str(e.get('name','')).lower() == target or str(e.get('type','')).lower() == target), None)
         
         if not measurement:
@@ -273,8 +294,8 @@ class ForensicGateLayer:
         
         if raw_val is None: return None
         
-        # Normalize forensic measurements to base units
         try:
+            # Perform unit-aware normalization before limit check
             val = ForensicGateLayer._convert_to_base(float(str(raw_val).replace('%','')), meas_unit)
         except (ValueError, TypeError):
             return None
@@ -287,11 +308,16 @@ class ForensicGateLayer:
             
         return None
 
-    # ---------------------------------------------------------
-    #  D. CONTRAINDICATIONS
-    # ---------------------------------------------------------
+    # -------------------------
+    # GATE 4: CONTRAINDICATIONS
+    # -------------------------
     @staticmethod
     def validate_contraindication(events: list, rule: ForensicRule):
+        """
+        Safety Gate.
+        Prevents dangerous combinations of conditions and treatments 
+        (e.g., Drug X cannot be given if History Y is present).
+        """
         forbidden = rule.logic_config.get('forbidden_treatment')
         trigger_cond = rule.logic_config.get('trigger_condition') 
         trigger_drug = rule.logic_config.get('trigger_drug')      
@@ -299,7 +325,7 @@ class ForensicGateLayer:
         forbidden_event = next((e for e in events if e.get('name') == forbidden), None)
         
         if forbidden_event:
-            # SURGICAL FIX: Check if EITHER the condition OR the drug exists in history
+            # Check for existing condition or drug in the event history
             trigger_found = any(
                 e.get('name') == trigger_cond or e.get('name') == trigger_drug 
                 for e in events
@@ -310,14 +336,15 @@ class ForensicGateLayer:
                 return f"Contraindication: '{forbidden}' given despite '{found_trigger}' history."
         return None
 
-    # ---------------------------------------------------------
-    #  E. MUTUALLY EXCLUSIVE EVENTS
-    # ---------------------------------------------------------
+    # --------------------------
+    # GATE 5: MUTUAL EXCLUSIVITY
+    # --------------------------
     @staticmethod
     def validate_exclusive(events: list, rule: ForensicRule):
         """
-        Logic: Event A and Event B cannot both exist in the claim.
-        Verdict: INVALID (Incompatibility)
+        Integrity Gate.
+        Detects conflicting events that logically cannot co-exist in a 
+        truthful clinical claim.
         """
         event_1 = rule.logic_config.get('event_1')
         event_2 = rule.logic_config.get('event_2')
@@ -329,14 +356,15 @@ class ForensicGateLayer:
             return f"Mutually Exclusive: '{event_1}' and '{event_2}' cannot both be present."
         return None
 
-    # ---------------------------------------------------------
-    #  F. DUPLICATE EVENT DETECTION (Data Integrity)
-    # ---------------------------------------------------------
+    # -----------------------------------
+    # GATE 6: DATA INTEGRITY (DUPLICATES)
+    # -----------------------------------
     @staticmethod
     def validate_duplicate_event(events: list, rule: ForensicRule):
         """
-        Logic: Identical event.type, timestamp, and source appearing > 1 time.
-        Verdict: INVALID (hard data integrity violation)
+        Forensic Fingerprinting Gate.
+        Detects duplicate records based on type, timestamp, and source 
+        to identify data double-counting or record tampering.
         """
         seen = set()
         for e in events:
@@ -350,32 +378,32 @@ class ForensicGateLayer:
             seen.add(sig)
         return None
 
-    # ---------------------------------------------------------
-    #  G. CONDITIONAL EVIDENCE COUPLING (Assertion -> Proof)
-    # ---------------------------------------------------------
+    # ----------------------------
+    # GATE 7: CONDITIONAL COUPLING
+    # ----------------------------
     @staticmethod
     def validate_conditional_existence(events: list, rule: ForensicRule):
         """
-        Logic: If assertion X found, then artifact Y must exist.
-        Verdict: INSUFFICIENT EVIDENCE
+        Logic Gate: Trigger Assertion -> Mandatory Proof.
+        Example: If 'General Anesthesia' is mentioned, then a 
+        'Pre-Anesthesia Evaluation' MUST exist.
         """
         assertion = str(rule.logic_config.get('trigger_assertion', '')).lower()
         required = str(rule.logic_config.get('required_artifact', '')).lower()
         
-        # Check if the triggering assertion exists in the event stream
         assertion_found = any(
             assertion in str(e.get('name', '')).lower() or assertion in str(e.get('type', '')).lower()
             for e in events
         )
         
         if assertion_found:
-            # [SURGERY] Handle Pediatric Guard in conditional rules
+            # Adult context safety guard
             ev_blob_full = str(events).lower()
             is_adult_context = any(m in ev_blob_full for m in ["para", "gravida", "gestation", "pregnancy", "anc visit", "28-year-old"])
             if is_adult_context and any(kw in required for kw in ["child", "pediatric", "infant", "hei", "growth milestone"]):
                 return None
 
-            # [FIX] "Bag of Words" matching for targets
+            # Token-based verification
             req_tokens = [t for t in required.split() if t not in ForensicGateLayer.STOPWORDS]
             
             artifact_found = False
@@ -388,7 +416,7 @@ class ForensicGateLayer:
                     artifact_found = True
                     break
 
-            # [SURGERY] Proxy mapping for meds, counseling, ADMIN, and IOT in conditional logic
+            # Synoptic Mapping (Medical Logic Fallbacks)
             if not artifact_found:
                 synonyms = ["tdf", "3tc", "dtg", "efv", "arv", "eac", "adherence", "disclosure", "stigma", "discordant", "patient file", "handbook", "batch", "traceability", "online", "psi"]
                 if any(m in ev_blob_full for m in synonyms):
@@ -398,14 +426,15 @@ class ForensicGateLayer:
                 return f"Requirement Gap: Rule requires '{required}' following '{assertion}', but it was not found."
         return None
 
-    # ---------------------------------------------------------
-    #  H. PROTOCOL TIME APPLICABILITY (Metadata Consistency)
-    # ---------------------------------------------------------
+    # ------------------------------
+    # GATE 8: PROTOCOL APPLICABILITY
+    # ------------------------------
     @staticmethod
     def validate_protocol_validity(events: list, rule: ForensicRule):
         """
-        Logic: Event timestamp must fall within protocol.valid_from and valid_until.
-        Verdict: INVALID only if clearly outside window.
+        Temporal Boundary Gate.
+        Ensures the evidence falls within the legal window of the 
+        protocol's validity (e.g., using a 2022 protocol for a 2018 event).
         """
         protocol = rule.protocol
         if not protocol.valid_from:
@@ -427,14 +456,15 @@ class ForensicGateLayer:
         
         return None
 
-    # ---------------------------------------------------------
-    #  I. EVENT COUNT SANITY (Outlier Detection)
-    # ---------------------------------------------------------
+    # --------------------
+    # GATE 9: COUNT SANITY
+    # --------------------
     @staticmethod
     def validate_count_sanity(events: list, rule: ForensicRule):
         """
-        Logic: Count of specific event type > threshold.
-        Verdict: INVALID on extreme outliers.
+        Statistical Outlier Gate.
+        Detects anomalies in event volume (e.g., claiming 5 amputations 
+        for a single patient encounter).
         """
         target_type = rule.logic_config.get('event_type')
         max_count = rule.logic_config.get('max_count')
@@ -448,18 +478,17 @@ class ForensicGateLayer:
         
         return None
 
-    # ---------------------------------------------------------
-    #  J. MONOTONIC EVENT ORDERING (Timeline Stability)
-    # ---------------------------------------------------------
+    # -------------------------------------
+    # GATE 10: MONOTONIC TIMELINE STABILITY
+    # -------------------------------------
     @staticmethod
     def validate_monotonic_ordering(events: list, rule: ForensicRule):
         """
-        Logic: Repeated events of same type must not move backward in time.
-        Verdict: INVALID (timeline corruption)
+        Chronological Integrity Gate.
+        Ensures that successive records of the same type always move 
+        forward in time, identifying back-dated or inconsistent logs.
         """
         target_type = rule.logic_config.get('event_type')
-        
-        # Filter relevant events
         relevant = [e for e in events if e.get('type') == target_type or e.get('name') == target_type]
         
         last_ts = None
@@ -473,30 +502,34 @@ class ForensicGateLayer:
             
         return None
 
-    # ---------------------------------------------------------
-    #  MAIN EXECUTION PIPELINE
-    # ---------------------------------------------------------
+    # ------------------------
+    # MAIN EXECUTION PIPELINE
+    # ------------------------
     @staticmethod
     def execute_audit(claim_events: list, applicable_rules: list[ForensicRule]) -> ForensicVerdict:
         """
-        Runs the full audit suite and generates the Certified Forensic Trace.
+        ADJUDICATION ORCHESTRATOR
+        
+        Runs the multi-layered logic suite and generates a Certified 
+        Forensic Trace. This trace is the 'Evidence of Thinking' that 
+        Nexus Forensic provides for every clinical verdict.
         """
         violations = []
         passed = []
 
-        # [NEW] Robust DEMOGRAPHIC CONTEXT DETECTOR
+        # Demographic Context Resolution
         blob = " ".join([str(e) for e in claim_events]).lower()
         is_adult_context = any(m in blob for m in ['gravida', 'para', 'maternity', 'pregnancy', 'adult', '28-year-old', 'years old', 'gestation'])
 
         for rule in applicable_rules:
-            # [HARD GUARDRAIL]: Scope Safety Check
+            # Rule/Scope Compatibility Check
             if rule.scope_tags and 'pediatric' in rule.scope_tags:
                 if is_adult_context:
                     continue 
 
             error = None
             
-            # 1. Standard Rules
+            # Logic Gate Dispatcher
             if rule.rule_type == 'temporal':
                 error = ForensicGateLayer.validate_temporal_logic(claim_events, rule)
             elif rule.rule_type == 'existence':
@@ -518,6 +551,7 @@ class ForensicGateLayer:
             elif rule.rule_type == 'monotonic':
                 error = ForensicGateLayer.validate_monotonic_ordering(claim_events, rule)
 
+            # Record Verdict
             if error:
                 violations.append({
                     "system_result": "Violation Detected",
@@ -541,8 +575,11 @@ class ForensicGateLayer:
 
         is_valid = len(violations) == 0
         
+        # Return the Immutable Verdict Contract
         return ForensicVerdict(
             is_valid=is_valid,
             passed_rules=passed,
             violations=violations
         )
+
+# END OF PRECISION LAYER

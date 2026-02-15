@@ -1,5 +1,5 @@
 # =========================================================
-# MEDGATE FACTORY: THE GPU KNOWLEDGE COMPILER (v2.5)
+# NEXUS FORENSIC FACTORY: THE GPU KNOWLEDGE COMPILER (v2.5)
 # =========================================================
 # MISSION: 
 # 1. Parse clinical/forensic guidelines (PDF) into structured blocks.

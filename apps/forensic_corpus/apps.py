@@ -26,16 +26,16 @@ class ForensicCorpusConfig(AppConfig):
             return
 
         #  Warmup toggle 
-        WARMUP_ENABLED = False   # ← change to True when you want warmup
+        WARMUP_ENABLED = True   # ← change to True when you want warmup
 
         if not WARMUP_ENABLED:
             print("------------------------------------------------", flush=True)
-            print("  MEDGATE BRAIN WARMUP DISABLED (STATIC TOGGLE)", flush=True)
+            print("  NEXUS FORENSIC BRAIN WARMUP DISABLED (STATIC TOGGLE)", flush=True)
             print("------------------------------------------------", flush=True)
             return
 
         print("------------------------------------------------", flush=True)
-        print("  TRIGGERING MEDGATE BRAIN WARMUP...", flush=True)
+        print("  TRIGGERING NEXUS FORENSIC BRAIN WARMUP...", flush=True)
         print("    (This loads the model into RAM now to avoid lag later)", flush=True)
         print("------------------------------------------------", flush=True)
 

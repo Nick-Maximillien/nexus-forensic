@@ -82,7 +82,7 @@ You are a Forensic Logic Parser. Convert the following clinical guideline text i
 """
 
 print("\n" + "="*70)
-print("🚀 TRIGGERING STABLE LOGIC EXTRACTION")
+print(" TRIGGERING STABLE LOGIC EXTRACTION")
 print("="*70)
 
 for i, test_input in enumerate(test_cases, 1):
@@ -109,9 +109,9 @@ for i, test_input in enumerate(test_cases, 1):
     print(generated_text.strip())
     
     if "{" in generated_text:
-        print("✅ SUCCESS: System Stabilized.")
+        print(" SUCCESS: System Stabilized.")
     else:
-        print("⚠️ Output generated but JSON markers missing.")
+        print(" Output generated but JSON markers missing.")
     print("-" * 70)
 
-print("\n🚀 ALL TESTS COMPLETE.")
+print("\n ALL TESTS COMPLETE.")

@@ -4,7 +4,8 @@ from django.contrib.postgres.fields import ArrayField
 from pgvector.django import VectorField
 from django.contrib.postgres.search import SearchVectorField
 
-# Choice definition aligned with Kenyan MoH standards
+# Define the formal hierarchy of health facilities in Kenya
+# Used to determine the applicability of specific clinical standards
 FACILITY_LEVELS = [
     ('level_1', 'Community (CHVs)'),
     ('level_2', 'Dispensaries'),
@@ -14,11 +15,13 @@ FACILITY_LEVELS = [
     ('level_6', 'National Referral (KNH/MTRH)'),
 ]
 
-# 1. The "Constitution" of Medicine: Clinical Protocols
+# ClinicalProtocol serves as the primary container for medical law and guidelines
+# It provides the high-level context for all downstream forensic rules
 class ClinicalProtocol(models.Model):
     """
     Represents a standard of care (e.g., MoH MCH Handbook).
     """
+    # Mapping of medical specializations to ensure scoped retrieval
     SPECIALTIES = [
         ('cardiology', 'Cardiology'),
         ('oncology', 'Oncology'),
@@ -56,14 +59,14 @@ class ClinicalProtocol(models.Model):
     issuing_body = models.CharField(max_length=255) # e.g., "American Heart Association"
     specialty = models.CharField(max_length=50, choices=SPECIALTIES)
     
-    # Facility level awareness for Kenyan Context
+    # Minimum facility level required to provide the services described in this protocol
     min_facility_level = models.CharField(
         max_length=20, 
         choices=FACILITY_LEVELS, 
-        default='level_2'
+        default='level_1'
     )
 
-    # Validity Window
+    # Date ranges to ensure audits use chronologically appropriate standards
     valid_from = models.DateField()
     valid_until = models.DateField(null=True, blank=True)
     
@@ -72,25 +75,24 @@ class ClinicalProtocol(models.Model):
     def __str__(self):
         return f"{self.title} ({self.version})"
 
-# 2. Atomic Logic Units: The Forensic Rules
+# ForensicRule represents an atomic, executable unit of medical logic
+# It bridges the gap between human-readable prose and deterministic machine execution
 class ForensicRule(models.Model):
     """
-    Equivalent to LegalUnit, but executable.
-    Refers to specific constraints defined in MedGate (Temporal/Evidence/Logical)
+    Turns human-readable prose to deterministic machine execution
+    Refers to specific constraints defined in Nexus Forensic (Temporal/Evidence/Logical)
     """
+    # Defines the specific logic gate that will process the claim evidence
     RULE_TYPES = [
         # A. Temporal Consistency
         ('temporal', 'Temporal Sequence'),       # Cause < Effect
-
         # B. Evidence Sufficiency
         ('existence', 'Evidence Requirement'),   # "Must have ECG"
-        
         # C. Logical Consistency & Thresholds
         ('threshold', 'Vital/Lab Threshold'),    # "HR < 50"
         ('contra', 'Contraindication'),          # "No Nitrates if BP < 90"
         ('exclusive', 'Mutually Exclusive'),     # "Cannot do A and B simultaneously"
-
-        # --- FORENSIC SCIENCE EXTENSIONS  ---
+        # Forensic science extensions for timeline and data integrity
         ('duplicate', 'Duplicate Event Detection'),           # Data Integrity
         ('conditional_existence', 'Conditional Evidence Requirement'), # Assertion -> Proof
         ('protocol_validity', 'Protocol Time Applicability'), # Metadata Consistency
@@ -98,7 +100,7 @@ class ForensicRule(models.Model):
         ('monotonic', 'Monotonic Event Ordering'),            # Timeline Stability
     ]
 
-    # SCOPE DEFINITIONS (Where does this apply?)
+    # Categorizes the rule by operational area
     APPLICABILITY_SCOPES = [
         ('clinical', 'Clinical (Patient Care)'),
         ('facility', 'Facility (Operations/Admin)'),
@@ -106,7 +108,7 @@ class ForensicRule(models.Model):
         ('legal', 'Legal & Regulatory'),
     ]
 
-    # INTENT DEFINITIONS (Why does this exist?)
+    # Categorizes the rule by the underlying risk or purpose
     RULE_INTENTS = [
         ('safety', 'Patient Safety'),
         ('quality', 'Quality of Care'),
@@ -118,26 +120,25 @@ class ForensicRule(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     protocol = models.ForeignKey(ClinicalProtocol, on_delete=models.CASCADE, related_name='rules')
     
-    # UPGRADE: Index for exact "Tag A-0045" lookups
+    # Unique identifier for the rule (e.g., KQMH-1.2.1)
     rule_code = models.CharField(max_length=50, db_index=True) 
     
     rule_type = models.CharField(max_length=50, choices=RULE_TYPES)
     
-    # The human-readable standard (for the LLM to cite)
+    # The human-readable standard as found in the source document
     text_description = models.TextField() 
 
-    # The machine-readable logic (for the Django Gate to execute)
+    # The machine-readable JSON configuration used by the Forensic Gate logic
     logic_config = models.JSONField(default=dict)
 
-    # [NEW] Granular facility level enforcement for the Kenyan Pivot
+    # Multi-select field for facility levels where this specific rule is applicable
     applicable_facility_levels = ArrayField(
         models.CharField(max_length=20, choices=FACILITY_LEVELS),
         default=list,
         help_text="Facility levels where this specific rule is enforceable."
     )
 
-    # Deterministic Scope & Intent Tags
-    # This enables "Surgical Scoping" without keyword hacking
+    # Tags for surgical scoping during retrieval phases
     scope_tags = ArrayField(
         models.CharField(max_length=50, choices=APPLICABILITY_SCOPES),
         default=list,
@@ -150,7 +151,7 @@ class ForensicRule(models.Model):
         help_text="Why this rule exists (e.g., ['safety', 'compliance'])"
     )
 
-    # UPGRADE: Full-Text Search Vector for Hybrid Search
+    # Native PostgreSQL search vector for keyword-based retrieval fallback
     search_vector = SearchVectorField(null=True) 
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -158,8 +159,10 @@ class ForensicRule(models.Model):
     def __str__(self):
         return f"{self.rule_code}: {self.rule_type}"
 
-# 3. Semantic Search Vector
+# RuleEmbedding stores high-dimensional vectors for semantic RAG retrieval
+# Designed to be compatible with pgvector for efficient similarity searches
 class RuleEmbedding(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     rule = models.OneToOneField(ForensicRule, on_delete=models.CASCADE, related_name='embedding')
-    vector = VectorField(dimensions=768) # Compatible with Vertex AI
+    # 768 dimensions matches the Vertex AI Text embeddings MedLM models
+    vector = VectorField(dimensions=768)

@@ -2,10 +2,10 @@ from datetime import datetime
 from django.utils import timezone
 from django.db import transaction
 
-# Persistence
+# Persistence layer for audit tracking
 from apps.forensic_agent.models import AuditTask
 
-# Capabilities
+# Capabilities for retrieval and synthesis
 from apps.forensic_rag.retrieval import ForensicRAG
 from apps.forensic_rag.utils import get_embedding
 from apps.forensic_domain.contract import ForensicAuditPlan
@@ -13,18 +13,21 @@ from apps.llm_interface.medgemma_renderer import generate_research_summary
 
 class ForensicResearchAgent:
     """
-    Parallel pipeline for 'Auditable Research'.
+    Parallel pipeline for Auditable Research.
     Retrieves immutable truths (Rules) and synthesizes them without
     performing a compliance audit on claim data.
-    Now upgraded to support System Grade Scope and Intent visibility.
+    Provides system-grade visibility into the scope and intent of clinical guidelines.
     """
 
     def __init__(self, case_id: str):
+        """
+        Initialize the agent with a specific case identifier for session tracking.
+        """
         self.case_id = case_id
 
     def _log(self, task: AuditTask, step: str, message: str, status: str = "INFO"):
         """
-        Appends a structured log entry to the agent trace.
+        Appends a structured log entry to the agent trace field for forensic observability.
         """
         entry = {
             "timestamp": timezone.now().isoformat(),
@@ -35,18 +38,20 @@ class ForensicResearchAgent:
         current_trace = task.agent_trace or []
         current_trace.append(entry)
         task.agent_trace = current_trace
+        # Update only the trace field to prevent overwriting other concurrent updates
         task.save(update_fields=['agent_trace'])
 
     def run_research(self, query_text: str, specialty: str = "auto", scope: str = None) -> dict:
         """
-        Executes the Research Pipeline with Full Observability.
-        [UPGRADE] Accepts 'scope' to allow filtered research (e.g., "facility only"),
-        but defaults to None (Universal Search) if not specified.
+        Executes the Research Pipeline with full observability.
+        Accepts scope to allow filtered research (e.g., facility only),
+        but defaults to universal search if not specified.
         """
         start_time = timezone.now()
 
         with transaction.atomic():
             # 1. INITIALIZE TASK
+            # Create a database record for this research session
             task = AuditTask.objects.create(
                 case_id=self.case_id,
                 claim_payload={"mode": "research", "specialty": specialty, "scope": scope},
@@ -54,10 +59,11 @@ class ForensicResearchAgent:
                 status='RUNNING'
             )
             
-            self._log(task, "INIT", f"🧪 Research Agent Activated. Query: '{query_text}'")
+            self._log(task, "INIT", f"Research Agent Activated. Query: '{query_text}'")
 
             try:
                 # 2. PLAN
+                # Establish the search parameters and planning context
                 scope_log = scope.upper() if scope else "ALL (UNIVERSAL)"
                 self._log(task, "PLANNING", f"Setting research context: {specialty} | Scope: {scope_log}")
                 
@@ -65,22 +71,25 @@ class ForensicResearchAgent:
                     specialty_context=specialty,
                     event_timestamp=datetime.now().isoformat(),
                     active_protocols_only=True,
-                    audit_scope=scope # [UPGRADE] Pass scope (or None for broad search)
+                    audit_scope=scope 
                 )
 
                 # 3. RETRIEVE
-                self._log(task, "RETRIEVAL", "🔍 Scanning Clinical Corpus for immutable truths...")
+                # Search the medical corpus using vector embeddings
+                self._log(task, "RETRIEVAL", "Scanning Clinical Corpus for immutable truths...")
 
                 query_vec = get_embedding(query_text)
                 rules = ForensicRAG.retrieve_applicable_rules(query_vec, plan, query_text)
                 
+                # Store the protocol IDs associated with retrieved rules for provenance
                 task.retrieved_protocols = [
                     getattr(r, "protocol_id", None) for r in rules
                 ]
                 task.save(update_fields=["retrieved_protocols"])
 
+                # Handle scenarios where no clinical protocols match the query parameters
                 if not rules:
-                    self._log(task, "HALT", "⛔ No clinical protocols found matching query.", "WARNING")
+                    self._log(task, "HALT", "No clinical protocols found matching query.", "WARNING")
                     
                     task.status = 'HALTED'
                     task.final_report = {
@@ -98,16 +107,16 @@ class ForensicResearchAgent:
                         "agent_trace": task.agent_trace
                     }
 
-                self._log(task, "RETRIEVAL", f"✅ Retrieved {len(rules)} relevant citations.")
+                self._log(task, "RETRIEVAL", f"Retrieved {len(rules)} relevant citations.")
 
                 # 4. SYNTHESIZE
-                self._log(task, "SYNTHESIS", "📝 Invoking MedGemma for grounded explanation...")
+                # Use MedGemma to generate a grounded explanation based on the retrieved rules
+                self._log(task, "SYNTHESIS", "Invoking MedGemma for grounded explanation...")
                 
-                # [FIX] Safety check added here
                 research_output = generate_research_summary(query_text, rules) or {}
 
                 # 5. STRUCTURE THE EVIDENCE
-                # [UPGRADE] Inject Scope and Intent tags into the evidence packet
+                # Compile a structured packet of retrieved clinical facts for the frontend
                 evidence_packet = []
                 for r in rules:
                     evidence_packet.append({
@@ -119,14 +128,15 @@ class ForensicResearchAgent:
                         },
                         "text": r.text_description,
                         "type": r.rule_type,
-                        "scope": r.scope_tags,   # [NEW] Deliver full applicable scopes
-                        "intent": r.intent_tags, # [NEW] Deliver intent context
+                        "scope": r.scope_tags,   # Deliver full applicable scopes
+                        "intent": r.intent_tags, # Deliver intent context
                         "logic": r.logic_config
                     })
 
-                self._log(task, "FINISH", "🏁 Research complete.", "SUCCESS")
+                self._log(task, "FINISH", "Research complete.", "SUCCESS")
 
                 # 6. FINALIZE
+                # Update task state and store the final synthesized report
                 task.status = 'COMPLETED'
                 task.completed_at = timezone.now()
                 
@@ -135,7 +145,6 @@ class ForensicResearchAgent:
                     "retrieved_facts": evidence_packet
                 }
                 
-                # [FIX] Safe access using .get() now works because research_output is guaranteed dict
                 task.final_report = {
                     "llm_explanation": research_output.get("explanation", "Analysis unavailable.")
                 }
@@ -152,7 +161,8 @@ class ForensicResearchAgent:
                 }
 
             except Exception as e:
-                self._log(task, "CRASH", f" System Failure: {str(e)}", "CRITICAL")
+                # Catch and log system failures during the agentic workflow
+                self._log(task, "CRASH", f"System Failure: {str(e)}", "CRITICAL")
                 task.status = 'ERROR'
                 task.save()
                 raise e

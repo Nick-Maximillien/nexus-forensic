@@ -16,9 +16,9 @@ os.environ["BITSANDBYTES_NOWELCOME"] = "1"
 print("Initializing High-Throughput Forensic Training Environment (MedGemma Trainer - TURBO)...")
 print("="*70)
 
-# =========================================================
+# ========================
 # 0. DEPENDENCY MANAGEMENT
-# =========================================================
+# ========================
 print("-> Installing packages...")
 
 install_cmd = """
@@ -52,9 +52,9 @@ from jsonschema import validate, ValidationError
 
 print("Environment ready.")
 
-# =========================================================
+# ===========================
 # HUGGING FACE AUTHENTICATION
-# =========================================================
+# ===========================
 print("Authenticating with Hugging Face...")
 from huggingface_hub import login
 from kaggle_secrets import UserSecretsClient
@@ -64,9 +64,9 @@ hf_token = user_secrets.get_secret("HF_TOKEN")
 login(token=hf_token)
 print("Authentication successful.")
 
-# =========================================================
+# ================================================
 # 1. LOAD MODEL & TOKENIZER (FP16 SPEED OPTIMIZED)
-# =========================================================
+# ================================================
 MODEL_ID = "google/medgemma-1.5-4b-it"
 
 print(f"\nLoading base model ({MODEL_ID})...")
@@ -95,7 +95,7 @@ model = AutoModelForCausalLM.from_pretrained(
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=True)
 
-# === FIX 1: PAD = EOS (NO NEW TOKEN INTRODUCTION) ===
+# === PAD = EOS (NO NEW TOKEN INTRODUCTION) ===
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.pad_token_id = tokenizer.eos_token_id
 
@@ -121,9 +121,9 @@ model = get_peft_model(model, peft_config)
 print("Model loaded and adapted.")
 model.print_trainable_parameters()
 
-# =========================================================
+# =========================
 # 2. DATASET
-# =========================================================
+# =========================
 print("\nLoading dataset...")
 dataset_path = "/kaggle/input/medgate-compiler-data/medgate_finetune_FINAL.jsonl"
 raw_data = []
@@ -145,9 +145,9 @@ alpaca_prompt = """Below is an instruction that describes a task, paired with an
 ### Response:
 {}"""
 
-# =========================================================
+# =================================================
 # 3. TOKENIZATION (FIXED: DYNAMIC PADDING SPEEDUP)
-# =========================================================
+# =================================================
 max_seq_length = 2048
 
 def tokenize_function(examples):
@@ -202,9 +202,9 @@ tokenized_dataset = hf_dataset.map(
     remove_columns=hf_dataset.column_names
 )
 
-# =========================================================
+# ================================================
 # 4. DATA COLLATOR & 5. TRAINING (HIGH THROUGHPUT)
-# =========================================================
+# ================================================
 data_collator = DataCollatorForLanguageModeling(
     tokenizer=tokenizer,
     mlm=False
@@ -241,7 +241,7 @@ class TurboForensicTrainer(Trainer):
         shift_logits = logits[..., :-1, :].contiguous()
         shift_labels = labels[..., 1:].contiguous()
 
-        # === FIX 2: MASK PAD FROM LOSS ===
+        # === MASK PAD FROM LOSS ===
         shift_labels = shift_labels.masked_fill(
             shift_labels == tokenizer.pad_token_id, -100
         )
@@ -274,9 +274,9 @@ trainer = TurboForensicTrainer(
 print("Training starting (Padding Trap Fixed)...")
 trainer.train()
 
-# =========================================================
-# 6. VERIFICATION (INTACT)
-# =========================================================
+# ========================
+# 6. VERIFICATION (Testing)
+# ========================
 print("\nRunning verification test...")
 model.eval()
 model.config.use_cache = True
@@ -315,9 +315,9 @@ print("-"*70)
 print(f"GENERATED RESPONSE:\n{decoded_response}")
 print("-"*70)
 
-# =========================================================
+# ==========
 # 7. EXPORT
-# =========================================================
+# ==========
 print("\nSaving adapter...")
 save_path = "medgate_forensic_adapter_PRODUCTION"
 model.save_pretrained(save_path)

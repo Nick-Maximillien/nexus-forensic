@@ -4,7 +4,7 @@ from django.contrib.postgres.fields import ArrayField
 
 class AuditTask(models.Model):
     """
-    Represents the lifecycle of a single Forensic Audit Agent execution.
+    Represents the lifecycle of a single Forensic Audit/Research Agent execution.
     Tracks the transition from INGESTION -> VALIDATION -> NOTIFICATION.
     """
     STATUS_CHOICES = [
