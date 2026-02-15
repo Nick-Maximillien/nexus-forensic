@@ -1,4 +1,4 @@
-# MedGate Forensic — Project Structure
+# Nexus Forensic — Project Structure
 
 ## Directory Tree
 
