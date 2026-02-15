@@ -3,7 +3,7 @@
 ## Directory Tree
 
 ```
-medgate-forensic/
+nexus-forensic/
 ├── README.md                          # Main project documentation
 ├── PROJECT_STRUCTURE.md               # Project Structure
 ├── manage.py                          # Django CLI entry point

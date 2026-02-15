@@ -257,7 +257,6 @@ The primary entry point for all forensic operations.
 
 - Python 3.11
 - PostgreSQL 15+ with pgvector
-- Redis
 - GCP service account (for Vertex AI access)
 
 ### Local Setup
@@ -381,4 +380,4 @@ Outputs that don't match schema are rejected.
 
 ## License
 
-Project code is proprietary. Use of Google HAI-DEF and MedGemma models is subject to Google's and Hugging Face's licensing terms.
+Project code, fine-tuned model and its edge variant are open source. Knowledge base is proprietary. Use of Google HAI-DEF and MedGemma models is subject to Google's and Hugging Face's licensing terms.
