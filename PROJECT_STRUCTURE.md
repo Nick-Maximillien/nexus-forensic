@@ -194,7 +194,7 @@ nexus-forensic/
 - `apps/forensic_domain/precision.py` — **THE JUDGE** (all compliance verdicts)
 - `apps/forensic_domain/contract.py` — Verdict & trace data structures
 - `apps/forensic_rag/utils.py` — Embedding & retrieval initialization
-- `apps/llm_interface/medgemma_renderer.py` — Narrative generation
+- `apps/forensic_corpus/llm_normalizer.py` — Narrative generation
 
 ### Orchestration & APIs
 - `apps/forensic_agent/workflow.py` — Audit lifecycle management
