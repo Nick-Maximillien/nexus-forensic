@@ -375,22 +375,9 @@ Outputs that don't match schema are rejected.
 
 - **Data minimization**: LLMs receive extracted events only, not raw identifiers
 - **Deterministic verdicts**: System refuses to judge if no governing protocol exists
-- **Audit trail**: All agent steps logged in gent_trace for replay and verification
+- **Audit trail**: All agent steps logged in agent_trace for replay and verification
 - **Secret management**: Use environment variables or mounted secrets; do not commit credentials
 
-## File Structure
-
-`
-apps/
-  forensic_domain/precision.py      - Logic gate implementations
-  forensic_rag/utils.py              - Embedding and search
-  forensic_agent/workflow.py         - Orchestration
-  forensic_corpus/ingestion/         - Document parsing
-  llm_interface/medgemma_renderer.py - Report generation
-Dockerfile                           - Build with baked assets
-docker-compose.yml                   - Orchestration
-requirements.txt                     - Dependencies
-`
 
 ## License
 
