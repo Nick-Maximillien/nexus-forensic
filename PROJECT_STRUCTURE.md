@@ -60,7 +60,7 @@ nexus-forensic/
 │   │   │
 │   │   ├── ingestion/                 # Document parsing & structural compilation
 │   │   │   ├── parser.py              # Docling-based PDF extraction
-│   │   │   └── llm_normalizer.py      # MedGemma-powered rule compilation
+│   │   │   └── llm_normalizer.py      # Fine-tuned MedGemma-powered rule compilation
 │   │   │                              # - Supports local (GGUF) and cloud (Vertex AI)
 │   │   │                              # - Outputs deterministic JSON rule schemas
 │   │   │
@@ -92,7 +92,7 @@ nexus-forensic/
 │   ├── llm_interface/                 # Language Model Integration (Layer 4)
 │   │   ├── __init__.py
 │   │   ├── apps.py
-│   │   ├── medgemma_renderer.py       # Fine-tuned MedGemma narrative generation
+│   │   ├── medgemma_renderer.py       # Base MedGemma narrative generation
 │   │   │                              # - Local inference (llama-cpp-python GGUF)
 │   │   │                              # - Cloud inference (Vertex AI endpoint)
 │   │   │                              # - OFFLINE_EDGE toggle for local/cloud switch
