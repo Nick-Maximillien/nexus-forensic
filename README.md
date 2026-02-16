@@ -18,7 +18,7 @@ Medical language models fail not primarily through hallucination, but through **
 
 This creates systemic risk in clinical audit trails, insurance documentation, and post-hoc medical investigations.
 
-**Nexus Forensic solves this by separating evidence interpretation (where LLMs help) from adjudication logic (where only deterministic code decides).**
+**Nexus Forensic solves this by separating evidence interpretation (where LLMs help) from adjudication logic (where only deterministic code decides).** This system does not provide clinical decision support or treatment recommendations. It performs post-hoc compliance verification against published medical protocols.
 
 ---
 
@@ -301,7 +301,7 @@ The Docker image includes:
 
 ### OFFLINE_EDGE Toggle
 
-Set OFFLINE_EDGE=True (default) to use local GGUF models. Set to False for cloud (Vertex AI) inference.
+Set OFFLINE_EDGE=True (default) to use local GGUF models. Set to False for cloud (Vertex AI) inference. Public huggingface links to fine-tuned model and its edge variant have been provided.
 
 ## Usage
 
@@ -321,10 +321,10 @@ python manage.py ingest_documents \
 python manage.py generate_embeddings
 ```
 
-### Start Background Worker
+### Start Background Worker (optional)
 
 ```bash
-celery -A medgate worker -l info
+celery -A nexus-forensic worker -l info
 ```
 
 ### Other Commands
@@ -685,7 +685,7 @@ python scripts/medgemma_conversion.py --input model.bin --output model.gguf
 4. **HAI-DEF Integration**
    - MedLM embeddings (Layer 1)
    - MedGemma fine-tuning (Layer 0)
-   - Vertex AI endpoints 
+   - Vertex AI endpoints  for base Medgemma variant
 
 ---
 
