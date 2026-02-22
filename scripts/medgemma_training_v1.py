@@ -1,4 +1,12 @@
-import os
+"""
+TRAINING SCRIPT: MEDGEMMA-NEUROMORPHIC-COMPILER-V1
+ROLE: Neurosymbolic Structural Compiler (Clinical Guidelines -> Executable Logic)
+TARGET MODEL: google/medgemma-1.5-4b-it
+PRECISION: 4-bit NormalFloat (NF4) with FP16 Compute
+CAPABILITY: Fine-tuned adapter for deterministic Knowledge Graph synthesis and clinical verification.
+"""
+
+import os mn
 import json
 import re
 import logging
@@ -8,6 +16,7 @@ import subprocess
 import sys
 
 # --- ENVIRONMENT SETUP ---
+# Configure hardware isolation and memory management parameters
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 os.environ["WANDB_DISABLED"] = "true"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
@@ -16,9 +25,11 @@ os.environ["BITSANDBYTES_NOWELCOME"] = "1"
 print("Initializing High-Throughput Forensic Training Environment (MedGemma Trainer - TURBO)...")
 print("="*70)
 
-# ========================
+# ------------------------------------
 # 0. DEPENDENCY MANAGEMENT
-# ========================
+# ------------------------------------
+# Enforce specific library versions required for MedGemma 1.5 4B IT structural compilation.
+# Unsloth is removed to ensure standard Hugging Face Transformer compatibility for production.
 print("-> Installing packages...")
 
 install_cmd = """
@@ -52,9 +63,10 @@ from jsonschema import validate, ValidationError
 
 print("Environment ready.")
 
-# ===========================
+# -------------------------------
 # HUGGING FACE AUTHENTICATION
-# ===========================
+# -------------------------------
+# Authenticate using Kaggle Secrets to access the gated Google MedGemma repository.
 print("Authenticating with Hugging Face...")
 from huggingface_hub import login
 from kaggle_secrets import UserSecretsClient
@@ -64,9 +76,10 @@ hf_token = user_secrets.get_secret("HF_TOKEN")
 login(token=hf_token)
 print("Authentication successful.")
 
-# ================================================
+# -----------------------------------------------------
 # 1. LOAD MODEL & TOKENIZER (FP16 SPEED OPTIMIZED)
-# ================================================
+# -----------------------------------------------------
+# Initialize the base MedGemma model using NF4 quantization for 4-bit precision efficiency.
 MODEL_ID = "google/medgemma-1.5-4b-it"
 
 print(f"\nLoading base model ({MODEL_ID})...")
@@ -80,6 +93,7 @@ bnb_config = BitsAndBytesConfig(
     bnb_4bit_use_double_quant=True,
 )
 
+# Clear VRAM fragmentation before loading the weights
 if torch.cuda.is_available():
     torch.cuda.empty_cache()
     torch.cuda.synchronize()
@@ -95,7 +109,8 @@ model = AutoModelForCausalLM.from_pretrained(
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=True)
 
-# === PAD = EOS (NO NEW TOKEN INTRODUCTION) ===
+# ---- PAD = EOS (NO NEW TOKEN INTRODUCTION) ----
+# Align Pad and End-of-Sequence tokens to ensure sequence termination stability.
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.pad_token_id = tokenizer.eos_token_id
 
@@ -105,9 +120,11 @@ print(f"-> PAD token: {tokenizer.pad_token} (ID: {tokenizer.pad_token_id})")
 tokenizer.padding_side = "right"
 model.config.pad_token_id = tokenizer.pad_token_id
 
+# Configure model for k-bit training and activate gradient checkpointing to conserve memory.
 model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
 model.config.use_cache = False
 
+# LoRA Configuration targeting all major projection layers for maximized forensic specificity.
 peft_config = LoraConfig(
     r=16, 
     lora_alpha=32,
@@ -121,9 +138,10 @@ model = get_peft_model(model, peft_config)
 print("Model loaded and adapted.")
 model.print_trainable_parameters()
 
-# =========================
+# --------------------
 # 2. DATASET
-# =========================
+# --------------------
+# Load the verified training dataset containing the clinical-to-symbolic mapping rules.
 print("\nLoading dataset...")
 dataset_path = "/kaggle/input/medgate-compiler-data/medgate_finetune_FINAL.jsonl"
 raw_data = []
@@ -134,6 +152,7 @@ with open(dataset_path, "r") as f:
 
 print(f"Loaded {len(raw_data)} records.")
 
+# Implement the standard Alpaca prompt template used for instruction-tuning datasets.
 alpaca_prompt = """Below is an instruction that describes a task, paired with an input that provides further context. Write a response that appropriately completes the request.
 
 ### Instruction:
@@ -145,9 +164,10 @@ alpaca_prompt = """Below is an instruction that describes a task, paired with an
 ### Response:
 {}"""
 
-# =================================================
-# 3. TOKENIZATION (FIXED: DYNAMIC PADDING SPEEDUP)
-# =================================================
+# --------------------------------------------------------
+# 3. TOKENIZATION (DYNAMIC PADDING SPEEDUP)
+# --------------------------------------------------------
+# Process dataset through prompt-masking to ensure loss is calculated only on JSON outputs.
 max_seq_length = 2048
 
 def tokenize_function(examples):
@@ -181,6 +201,7 @@ def tokenize_function(examples):
         mask = full_enc["attention_mask"]
         prompt_len = len(prompt_enc["input_ids"])
         
+        # Mask prompt tokens with -100 so the model does not attempt to predict the instruction.
         actual_split = min(prompt_len, len(ids))
         label = [-100] * actual_split + ids[actual_split:]
         label = label[:len(ids)]
@@ -202,14 +223,18 @@ tokenized_dataset = hf_dataset.map(
     remove_columns=hf_dataset.column_names
 )
 
-# ================================================
-# 4. DATA COLLATOR & 5. TRAINING (HIGH THROUGHPUT)
-# ================================================
+# -----------------------
+# 4. DATA COLLATOR 
+# -------------------------
+# Setup the language modeling collator and training hyper-parameters.
 data_collator = DataCollatorForLanguageModeling(
     tokenizer=tokenizer,
     mlm=False
 )
 
+# ---------------------------------
+# 5. TRAINING (HIGH THROUGHPUT)
+# ----------------------------------
 training_args = TrainingArguments(
     output_dir="outputs",
     per_device_train_batch_size=1, 
@@ -231,6 +256,7 @@ training_args = TrainingArguments(
     group_by_length=True,
 )
 
+# Specialized trainer implementing weighted loss for sequence termination tokens.
 class TurboForensicTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
         labels = inputs.pop("labels")
@@ -241,7 +267,7 @@ class TurboForensicTrainer(Trainer):
         shift_logits = logits[..., :-1, :].contiguous()
         shift_labels = labels[..., 1:].contiguous()
 
-        # === MASK PAD FROM LOSS ===
+        # ---- MASK PAD FROM LOSS ----
         shift_labels = shift_labels.masked_fill(
             shift_labels == tokenizer.pad_token_id, -100
         )
@@ -251,6 +277,7 @@ class TurboForensicTrainer(Trainer):
             shift_labels.view(-1)
         )
         
+        # Upsample weight for EOS tokens to ensure the Structural Compiler terminates JSON correctly.
         eos_mask = (shift_labels.view(-1) == tokenizer.eos_token_id).float()
         loss_weights = 1.0 + (eos_mask * 2.0)
         loss = (loss * loss_weights).sum() / loss_weights.sum()
@@ -271,12 +298,13 @@ trainer = TurboForensicTrainer(
     data_collator=data_collator,
 )
 
-print("Training starting (Padding Trap Fixed)...")
+print("Training starting...")
 trainer.train()
 
-# ========================
-# 6. VERIFICATION (Testing)
-# ========================
+# -----------------------------
+# 6. VERIFICATION 
+# ------------------------------
+# Perform deterministic verification test on the fine-tuned Structural Compiler logic.
 print("\nRunning verification test...")
 model.eval()
 model.config.use_cache = True
@@ -301,7 +329,7 @@ with torch.no_grad():
         do_sample=False,
         eos_token_id=tokenizer.eos_token_id,
         pad_token_id=tokenizer.pad_token_id,
-        repetition_penalty=1.2,
+        repetition_penalty=1.2, 
     )
 
 decoded_response = tokenizer.decode(
@@ -315,12 +343,13 @@ print("-"*70)
 print(f"GENERATED RESPONSE:\n{decoded_response}")
 print("-"*70)
 
-# ==========
+# ------------------
 # 7. EXPORT
-# ==========
+# -------------------
+# Serialize the final LoRA adapter for deployment in the Nexus Forensic backend.
 print("\nSaving adapter...")
-save_path = "medgate_forensic_adapter_PRODUCTION"
+save_path = "nexus_forensic_adapter_V2"
 model.save_pretrained(save_path)
 tokenizer.save_pretrained(save_path)
-subprocess.run(f"zip -r medgate_adapter_PRODUCTION.zip {save_path}", shell=True)
+subprocess.run(f"zip -r nexus_adapter_v2.zip {save_path}", shell=True)
 print("TRAINING COMPLETE - ALL LOGIC PRESERVED")

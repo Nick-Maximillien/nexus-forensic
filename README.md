@@ -29,9 +29,9 @@ This creates systemic risk in clinical audit trails, insurance documentation, an
 | **Frontend** | Vercel | [Live Dashboard](https://nexus-forensic.vercel.app) |
 | **Backend API** | GCP Cloud Run | `https://nexus-forensic-571147915643.us-central1.run.app` |
 | **Database** | Cloud SQL | PostgreSQL 15 + pgvector (GCP Managed) |
-| **Fine-Tuning Workspace** | Kaggle | [MedGemma Forensic Trainer](https://www.kaggle.com/code/zicohubb/medgemma-impact-challenge-finetuning) |
-| **Structural Compiler** | Hugging Face | [Nexus-Forensic-MedGemma-4B](https://huggingface.co/zico-hubb/nexus-forensic-medgemma-4b) |
-| **Edge Artifact (GGUF)** | Hugging Face | [Nexus-Forensic-4B-GGUF](https://huggingface.co/zico-hubb/nexus-forensic-medgemma-4b-gguf) |
+| **Fine-Tuning Workspace** | Kaggle | [MedGemma Forensic Trainer](https://www.kaggle.com/code/nicholasmuthoki/medgemma-4b-deterministic-structural-compiler) |
+| **Structural Compiler** | Hugging Face | [Nexus-Forensic-MedGemma-4B](https://huggingface.co/Nick-Maximillien/nexus_forensic_medgemma_adapter_v2) |
+| **Edge Artifact (GGUF)** | Hugging Face | [Nexus-Forensic-4B-GGUF](https://huggingface.co/Nick-Maximillien/nexus-forensic-medgemma-4b.Q8_0.gguf ) |
 
 ## Project Structure
 
